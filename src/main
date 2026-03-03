@@ -1,3 +1,62 @@
 #!/usr/bin/env bash
 
-echo "Hello, world!"
+main(){
+	if [ "$#" -lt 1 ]; then
+		help
+		exit
+	fi
+	opt="$1"
+	shift
+	case "$opt" in
+		"init") 
+			echo "Iniciar repositorio dotsync" 
+			;;
+		"add") 
+			echo "Añadir archivo al repositorio dotsync" 
+			;;
+		"list") 
+			echo "Listar configuraciones guardadas" 
+			;;
+		"remove") 
+			echo "Eliminar configuración del repositorio dotsync" 
+			;;
+		"edit") 
+			echo "Editar archivo de configuración" 
+			;;
+		"log") 
+			echo "Visualizar cambios realizados en los archivos del repositorio" 
+			;;
+		"undo") 
+			echo "Restaurar cambios realizados en el repositorio" 
+			;;
+		"export") 
+			echo "Exportar repositorio a otro equipo" 
+			;;
+		"import") 
+			echo "Importar repositorio desde un equipo" 
+			;;
+		"sync") 
+			echo "Sincronización con repositorio de git remoto" 
+			;;
+		"help") 
+			help
+			;;
+	esac
+}
+
+help(){
+	printf "Uso: <%b> [opción1] [opción2] ...\n" "$0"
+	echo -e "\tinit\t- Iniciar repositorio dotsync"
+	echo -e "\tadd\t- Añadir archivo o carpeta al repositorio"
+	echo -e "\tlist\t- Mostrar elementos del repositorio dotsync"
+	echo -e "\tremove\t- Sacar archivo o carpeta del repositorio"
+	echo -e "\tedit\t- Editar archivo del repositorio"
+	echo -e "\tlog\t- Ver listado de cambios realizados"
+	echo -e "\tundo\t- Restaurar cambios en los archivos del repositorio"
+	echo -e "\texport\t- Exportar repositorio a otro equipo"
+	echo -e "\timport\t- Importar repositorio desde un equipo"
+	echo -e "\tsync\t- Opciones de sincronización con repositorio de git remoto"
+	echo -e "\thelp\t- Muestra este menú de ayuda"
+}
+
+main $@
