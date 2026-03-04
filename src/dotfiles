@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Funciones relacionadas con la gestión del repositorio dotsync
+
+check_deps(){
+    local deps=("$@")
+    local all_deps_installed=true
+    for program in "${deps[@]}"; do
+        if ! type "$program" > /dev/null 2>&1; then
+            echo -e "\e[31m$program no está instalado\e[0m"
+            get_install_cmd "$program"
+            all_deps_installed=false
+        fi
+    done
+    if [[ "$all_deps_installed" == true ]]; then
+        return 0
+    else 
+        return 1
+    fi
+}
+
+get_install_cmd(){
+	(	# Ejecutar en subshell para que no se cargue /etc/os-release globalmente
+		if [ -f /etc/os-release ]; then
+			source /etc/os-release
+		else 
+			echo -e "\e[31mNo se pudo detectar distribución de Linux\e[0m" >&2
+			exit
+		fi
+		local cmd="$1"
+		local DISTRO="$ID"		# ID de distro, se obtiene al cargar /etc/os-release
+		local package_manager=""
+		case "$DISTRO" in
+			debian|ubuntu|linuxmint|elementary|kali|pop|zorin|raspbian|devuan)	package_manager="apt" ;;
+			fedora|rhel|centos|rocky|almalinux|ol|scientific) package_manager="dnf" ;;
+			arch|manjaro|endeavouros|garuda|artix) package_manager="pacman -S" ;;
+			alpine) package_manager="apk add" ;;
+			*) 
+				echo "No se puede sugerir un método de instalación de dependencias para tu distribución de Linux"
+				echo "Para poder continuar, asegúrate de tener las herramientas necesarias instaladas" 
+				exit
+				;;
+		esac
+		# Obtener comando de instalación de command-not-found.com
+		local install_cmd=$(curl "https://command-not-found.com/$cmd" 2>/dev/null | grep "$package_manager" \
+		| sed -e 's/<\/\?code>//g' -e 's/^[[:space:]]*//' | head -n1) # Omitir tags HTML, espacios al principio y líneas innecesarias
+		
+		if [ -z "$install_cmd" ]; then
+            echo -e "\e[31mNo se ha podido entontrar el comando de instalación de $cmd, consulta la documentación de tu distribución ($DISTRO) para instalarlo\e[0m"
+		else 
+			printf "Puedes instalar %b con el siguiente comando:\n\t\e[36m%b\e[0m\n" "$cmd" "$install_cmd"
+		fi
+	)
+}
