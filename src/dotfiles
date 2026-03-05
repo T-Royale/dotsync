@@ -11,11 +11,10 @@ check_deps(){
             all_deps_installed=false
         fi
     done
-    if [[ "$all_deps_installed" == true ]]; then
-        return 0
-    else 
+    if ! "$all_deps_installed"; then
         return 1
     fi
+	return 0
 }
 
 get_install_cmd(){
@@ -45,9 +44,10 @@ get_install_cmd(){
 		| sed -e 's/<\/\?code>//g' -e 's/^[[:space:]]*//' | head -n1) # Omitir tags HTML, espacios al principio y líneas innecesarias
 		
 		if [ -z "$install_cmd" ]; then
-            echo -e "\e[31mNo se ha podido entontrar el comando de instalación de $cmd, consulta la documentación de tu distribución ($DISTRO) para instalarlo\e[0m"
+			echo -e "\e[31mNo se ha podido entontrar el comando de instalación de $cmd, consulta la documentación de tu distribución ($DISTRO) para instalarlo\e[0m"
 		else 
-			printf "Puedes instalar %b con el siguiente comando:\n\t\e[36m%b\e[0m\n" "$cmd" "$install_cmd"
+			printf "Instala \e[1m%b\e[0m con el siguiente comando:\n" "$cmd" 
+			printf "\t\e[36msudo %b\e[0m\n" "$install_cmd"
 		fi
 	)
 }

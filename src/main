@@ -4,8 +4,8 @@ deps=("curl" "git" "stow" "fzf")
 
 main(){
 	if ! check_deps "${deps[@]}"; then
-        exit
-    fi
+		exit
+	fi
 	if [ "$#" -lt 1 ]; then
 		help
 		exit
