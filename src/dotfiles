@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+init_dotsync(){
+	if ! mkdir -p "$REPO"; then
+		echo "Error al crear repositorio en $REPO"
+		exit 1
+	fi
+	(
+		cd "$REPO"
+		if ! git init . --quiet; then
+			echo "Error al iniciar repositorio git en $REPO"
+			exit 1
+		fi
+		printf '\.git
+				\.gitignore
+				\.gitmodules
+				^/README*\n' > .stow-local-ignore
+		echo "Esta es la carpeta con el contenido del repositorio dotsync" > README
+		echo "Se recomienda usar <dotsync edit> para editar los archivos del repositorio" >> README
+		echo "Dotsync es un software libre desarollado por Teo Morales (github.com/t-royale) bajo licencia GPLv3" >> README
+		echo "Si no has recibido una copia de esta licencia junto al programa visita gnu.org" >> README
+		if ! git add . > /dev/null && git commit -m "Commit inicial" > /dev/null; then
+			echo "Error al usar git en el repositorio"
+			exit 1
+		fi
+		echo "Repositorio dotsync inicializado con éxito"
+	)
+}
+
 check_deps(){
     local deps=("$@")
     local all_deps_installed=true

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
-deps=("curl" "git" "stow" "fzf")
+readonly DEPS=("curl" "git" "stow" "fzf")
+readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
+readonly REPO="$HOME/.dotsync"
 
 main(){
-	if ! check_deps "${deps[@]}"; then
+	if ! check_deps "${DEPS[@]}"; then
 		exit
 	fi
 	if [ "$#" -lt 1 ]; then
@@ -14,7 +16,7 @@ main(){
 	shift
 	case "$opt" in
 		"init") 
-			echo "Iniciar repositorio dotsync" 
+			init_dotsync
 			;;
 		"add") 
 			echo "Añadir archivo al repositorio dotsync" 
