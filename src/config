@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+load_config() {
+	if ! [ -f "$CONF" ]; then
+		return 0;	# No pasa nada si el archivo de configuración no existe
+	fi
+	if ! source "$CONF"; then
+		echo "Ha habido un error al leer el archivo de configuración"
+		return 1
+	fi
+	EXCLUDE+=("${conf_exclude[@]}")
+}
+
+check_excluded(){
+	set -x
+	if [ "$#" -ne 1 ]; then
+		return 1
+	fi
+	local target=$1
+	for pattern in "${EXCLUDE[@]}"; do
+		if [[ "$target" == $pattern ]]; then
+			return 0
+		fi
+	done
+	return 1
+}

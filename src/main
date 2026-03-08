@@ -3,11 +3,11 @@
 readonly DEPS=("curl" "git" "stow" "fzf")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
+EXCLUDE=("*cache" "*.log" "*logs/" "tmp/")
 
 main(){
-	if ! check_deps "${DEPS[@]}"; then
-		exit
-	fi
+	check_deps "${DEPS[@]}" || exit 1
+	load_config || exit 1
 	if [ "$#" -lt 1 ]; then
 		help
 		exit
