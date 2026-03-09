@@ -5,6 +5,8 @@ readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 EXCLUDE=("*cache" "*.log" "*logs/" "tmp/")
 
+shopt -s nullglob
+
 main(){
 	check_deps "${DEPS[@]}" || exit 1
 	load_config || exit 1
@@ -19,7 +21,7 @@ main(){
 			init_dotsync
 			;;
 		"add") 
-			echo "Añadir archivo al repositorio dotsync" 
+			add_path "$@" || exit 1
 			;;
 		"list") 
 			echo "Listar configuraciones guardadas" 

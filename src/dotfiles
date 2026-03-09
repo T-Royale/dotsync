@@ -1,6 +1,58 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+RECURSION_DEPTH=0
+
+add_path(){
+	if [ "$#" -lt 1 ]; then
+		echo "No se ha especificado ningún archivo o directorio"
+		return 1
+	fi
+	((RECURSION_DEPTH++))
+	for path in "$@"; do
+		if ! [ -e "$path" ]; then 
+			echo "ERROR: $path no existe"
+			continue
+		fi
+		local full_path=$(realpath "$path")
+		if ! [[ "$full_path" == "$HOME"* ]]; then
+			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME"
+			continue
+		fi
+		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
+		local basename="${full_path##*/}"
+		if is_excluded "$basename"; then
+		 	echo "OMITIDO $path"
+			continue
+		fi
+		if [ -f "$full_path" ]; then
+			mkdir -p "${repo_path%/*}"
+			echo "Moviendo $full_path a $repo_path"
+			mv "$full_path" "$repo_path"
+		elif [ -d "$full_path" ]; then
+			add_path "$full_path"/*		# Llama a esta misma función recursivamente
+		else 
+			echo "ERROR: $path no es un archivo o un directorio"
+			continue
+		fi
+	done
+	((RECURSION_DEPTH--))
+	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si es la primera llamada
+		echo "Finalizando sincronización con git y stow"
+		(
+			cd "$REPO"
+			git add .
+			if [ "$#" -eq 1 ]; then
+				git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync"
+			else
+				git commit -m "AÑADIR: Varios archivos" -m "Se han añadido con éxito varios archivos y/o directorios"
+			fi
+			stow .
+		)
+	fi
+	return 0
+}
+
 init_dotsync(){
 	if ! mkdir -p "$REPO"; then
 		echo "Error al crear repositorio en $REPO"
