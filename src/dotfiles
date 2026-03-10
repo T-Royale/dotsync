@@ -29,7 +29,7 @@ add_path(){
     	fi
 		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
 		local basename="${full_path##*/}"
-		if is_excluded "$basename"; then
+		if is_excluded "$full_path"; then
 		 	echo "OMITIDO $path"
 			continue
 		fi
