@@ -3,7 +3,7 @@
 readonly DEPS=("curl" "git" "stow" "fzf")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
-EXCLUDE=("*/$REPO" "*/$REPO/*" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
+EXCLUDE=("$REPO" "$REPO/*" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
 
 shopt -s nullglob
 
