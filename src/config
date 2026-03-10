@@ -11,12 +11,12 @@ load_config() {
 	EXCLUDE+=("${conf_exclude[@]}")
 }
 
-check_excluded(){
-	set -x
+is_excluded(){
 	if [ "$#" -ne 1 ]; then
 		return 1
 	fi
 	local target=$1
+	local pattern
 	for pattern in "${EXCLUDE[@]}"; do
 		if [[ "$target" == $pattern ]]; then
 			return 0

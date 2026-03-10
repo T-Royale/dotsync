@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Funciones relacionadas con la interfaz de usuario
+
+ui_select_files(){
+	local -n files_arr=$1		# El output será el archivo pasado como primer argumento
+	local -a exclude_path
+	for pattern in "${EXCLUDE[@]}"; do
+		exclude_path+=("-not" "-path" "$pattern")
+	done
+	files_sel=$(find "$HOME" -maxdepth 4 \
+		"${exclude_path[@]}" \
+		-not -type l \
+		| fzf -m --header="Selecciona archivos para añadir (TAB para multi-selección)")
+	[ -z "$files_sel" ] && return 1
+	mapfile -t files_arr <<< "$files_sel"	# Convertir output de fzf a array
+}

@@ -3,7 +3,9 @@
 readonly DEPS=("curl" "git" "stow" "fzf")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
-EXCLUDE=("*cache" "*.log" "*logs/" "tmp/")
+EXCLUDE=("*/$REPO" "*/$REPO/*" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
+
+shopt -s nullglob
 
 main(){
 	check_deps "${DEPS[@]}" || exit 1
@@ -18,8 +20,17 @@ main(){
 		"init") 
 			init_dotsync
 			;;
-		"add") 
-			echo "Añadir archivo al repositorio dotsync" 
+		"add")
+			if [ "$#" -eq 0 ]; then
+				local files=()
+				if ui_select_files files; then
+					add_path "${files[@]}" || exit 1
+				else
+					echo "Selección cancelada"
+				fi
+			else 
+				add_path "$files" || exit 1
+			fi
 			;;
 		"list") 
 			echo "Listar configuraciones guardadas" 
