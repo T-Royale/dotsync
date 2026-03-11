@@ -3,6 +3,64 @@
 
 RECURSION_DEPTH=0
 
+remove_path(){
+	if [ "$#" -lt 1 ]; then
+		echo "No se ha especificado ningún archivo o directorio"
+		return 1
+	fi
+	# Desvincular enlaces simbólicos
+	if [ "$RECURSION_DEPTH" -eq 0 ]; then
+        ( cd "$REPO" && stow -D . > /dev/null 2>&1 )
+    fi
+	((RECURSION_DEPTH++))
+	for path in "$@"; do
+		if ! [ -e "$path" ]; then 
+			echo "ERROR: $path no existe"
+			continue
+		fi
+		local full_path=$(realpath "$path")
+		if [[ "$full_path" != "$REPO"* ]]; then
+			echo "ERROR: No puedes eliminar elementos fuera del repositorio"
+			continue
+    	fi
+		local real_path="${full_path/$REPO/$HOME}"	# Ruta fuera del repositorio
+		if ! mkdir -p "${real_path%/*}"; then
+			echo "No se pudo crear directorio para $real_path"
+		fi
+		local basename="${full_path##*/}"
+		if is_excluded "$full_path"; then
+			echo "OMITIDO $path"
+			continue
+		fi
+		if [ -f "$full_path" ]; then
+			echo "Moviendo $full_path a $real_path"
+			if ! mv "$full_path" "$real_path"; then
+				echo "ERROR: No se pudo mover el archivo"
+				continue;
+			fi
+			find "$REPO" -mindepth 1 -type d -empty -delete		# Eliminar carpetas vacías
+		elif [ -d "$full_path" ]; then
+			remove_path "$full_path"/*		# Llama a esta misma función recursivamente
+		else 
+			echo "ERROR: $path no es un archivo o un directorio"
+			continue
+		fi
+	done
+	((RECURSION_DEPTH--))
+	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si llamada original
+		echo "Finalizando sincronización con git y stow"
+		(
+			cd "$REPO"
+			git add -A  > /dev/null
+			if ! git diff-index --quiet HEAD --; then	# Evitar comitar sin cambios
+                git commit -m "QUITAR: Archivos restaurados al HOME" > /dev/null
+            fi
+			stow . > /dev/null		# Volver a vincular lo que queda
+		)
+	fi
+	return 0
+}
+
 add_path(){
 	if [ "$#" -lt 1 ]; then
 		echo "No se ha especificado ningún archivo o directorio"
@@ -55,7 +113,7 @@ add_path(){
 		echo "Finalizando sincronización con git y stow"
 		(
 			cd "$REPO"
-			git add . > /dev/null
+			git add -A > /dev/null
 			if [ "$#" -eq 1 ]; then
 				git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" > /dev/null
 			else
