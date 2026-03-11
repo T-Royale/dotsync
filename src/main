@@ -3,7 +3,7 @@
 readonly DEPS=("curl" "git" "stow" "fzf" "eza")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
-EXCLUDE=("$REPO" "$REPO/*" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
+EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
 
 shopt -s nullglob
 
@@ -23,20 +23,29 @@ main(){
 		"add")
 			if [ "$#" -eq 0 ]; then
 				local files=()
-				if ui_select_files files; then
+				if ui_select_files "$HOME" files; then
 					add_path "${files[@]}" || exit 1
 				else
 					echo "Selección cancelada"
 				fi
 			else 
-				add_path "$files" || exit 1
+				add_path "$@" || exit 1
 			fi
 			;;
 		"list") 
 		 	eza -la --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README" "$REPO"
 			;;
 		"remove") 
-			echo "Eliminar configuración del repositorio dotsync" 
+			if [ "$#" -eq 0 ]; then
+				local files=()
+				if ui_select_files "$REPO" files; then
+					remove_path "${files[@]}" || exit 1
+				else
+					echo "Selección cancelada"
+				fi
+			else 
+				remove_path "$@" || exit 1
+			fi
 			;;
 		"edit") 
 			echo "Editar archivo de configuración" 
@@ -56,7 +65,7 @@ main(){
 		"sync") 
 			echo "Sincronización con repositorio de git remoto" 
 			;;
-		"help") 
+		*) 
 			help
 			;;
 	esac

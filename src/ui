@@ -3,15 +3,17 @@
 # Funciones relacionadas con la interfaz de usuario
 
 ui_select_files(){
-	local -n files_arr=$1		# El output será el archivo pasado como primer argumento
+	local -n files_arr="$2"		# El output será la variable pasada como segundo argumento
 	local -a exclude_path
 	for pattern in "${EXCLUDE[@]}"; do
 		exclude_path+=("-not" "-path" "$pattern")
 	done
-	files_sel=$(find "$HOME" -maxdepth 4 \
-		"${exclude_path[@]}" \
-		-not -type l \
-		| fzf -m --header="Selecciona archivos para añadir (TAB para multi-selección)")
-	[ -z "$files_sel" ] && return 1
-	mapfile -t files_arr <<< "$files_sel"	# Convertir output de fzf a array
+	local found_files=$(find "$1" -mindepth 1 -maxdepth 4 "${exclude_path[@]}" -not -type l)
+	if [ -z "$found_files" ]; then
+		echo "No hay archivos para buscar"
+		return 0
+	fi
+	local selection=$(echo -e "$found_files" | fzf -m --header="Selecciona archivos para añadir (TAB para multi-selección)")
+	[ -z "$selection" ] && return 1
+	mapfile -t files_arr <<< "$selection"	# Convertir output de fzf a array
 }
