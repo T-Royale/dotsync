@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly DEPS=("curl" "git" "stow" "fzf" "eza")
+readonly DEPS=("curl" "git" "stow" "fzf" "tree")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
@@ -32,8 +32,12 @@ main(){
 				add_path "$@" || exit 1
 			fi
 			;;
-		"list") 
-		 	eza -la --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README" "$REPO"
+		"list")
+			if command -v eza > /dev/null; then
+		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README" "$REPO"
+			else
+				tree -a -C -L 5 -I ".git|.stow-local-ignore|README" "$REPO"
+			fi
 			;;
 		"remove") 
 			if [ "$#" -eq 0 ]; then
