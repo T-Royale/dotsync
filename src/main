@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly DEPS=("curl" "git" "stow" "fzf")
+readonly DEPS=("curl" "git" "stow" "fzf" "eza")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 EXCLUDE=("$REPO" "$REPO/*" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
@@ -33,7 +33,7 @@ main(){
 			fi
 			;;
 		"list") 
-			echo "Listar configuraciones guardadas" 
+		 	eza -la --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README" "$REPO"
 			;;
 		"remove") 
 			echo "Eliminar configuración del repositorio dotsync" 
