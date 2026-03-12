@@ -2,6 +2,30 @@
 
 # Funciones relacionadas con la interfaz de usuario
 
+ui_set_editor(){
+	local editors=("vi" "vim" "nvim" "nano" "emacs")
+	for editor in "${editors[@]}"; do
+		if command -v "$editor"; then
+			local installed_editors="${installed_editors}\n${editor}"
+		fi
+	done
+	if [ -z "$installed_editors" ]; then
+		echo "No tienes editores de archivos instalados"
+		echo "Se recomienda usar nvim para editar archivos"
+		echo "Instala nvim con el siguiente comando"
+		get_install_cmd "nvim" 
+		return 1
+	fi	
+	set -x 
+	local selected_editor=$(echo -e "$installed_editors" | fzf --header "Selecciona el editor de archivos que prefieras")
+	if [ -z "$selected_editor" ]; then
+		echo "No se ha seleccionado ningún editor de texto"
+		return 1
+	fi
+	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
+	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
+}
+
 ui_select_files(){
 	local -n files_arr="$2"		# El output será la variable pasada como segundo argumento
 	local -a exclude_path
