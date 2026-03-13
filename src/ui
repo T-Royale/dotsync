@@ -2,6 +2,39 @@
 
 # Funciones relacionadas con la interfaz de usuario
 
+ui_select_commit(){
+	(
+		cd "$REPO"
+		local commit=$(git log --oneline $@ | fzf \
+			--header "Selecciona el commit del que ver los cambios (ctrl+C para salir)" \
+			--preview 'git show --color=always {1}')
+		local hash=$(awk '{print $1}' <<< "$commit")
+		echo "$hash"
+	)
+}
+
+ui_git_diff(){
+	(
+		local selected=$(ui_select_commit)
+		if [ -z "$selected" ]; then
+			echo "No se ha seleccionado ningún commit"
+			return 0
+		fi
+		local pager=()
+		if command -v batcat > /dev/null; then pager=("batcat" "-l" "diff");
+			elif command -v bat > /dev/null ; then pager=("bat" "-l" "Diff");
+			else pager=("less" "-R")
+		fi
+		cd "$REPO"
+		local diff=$(git diff "$selected" HEAD)
+		if [ -z "$diff" ]; then
+			echo "No han habido cambios desde este commit"
+			return 0
+		fi
+		"${pager[@]}" <<< "$diff"
+	)
+}
+
 ui_set_editor(){
 	local editors=("vi" "vim" "nvim" "nano" "emacs")
 	for editor in "${editors[@]}"; do
@@ -16,7 +49,6 @@ ui_set_editor(){
 		get_install_cmd "nvim" 
 		return 1
 	fi	
-	set -x 
 	local selected_editor=$(echo -e "$installed_editors" | fzf --header "Selecciona el editor de archivos que prefieras")
 	if [ -z "$selected_editor" ]; then
 		echo "No se ha seleccionado ningún editor de texto"
