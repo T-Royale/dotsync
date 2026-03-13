@@ -1,6 +1,29 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+edit_file(){ 		# Soporte para editar múltiples archivos depende del editor
+	set -x 
+	local files=($@)
+	local file
+	for file in "${files[@]}"; do
+		# Si se pasa un enlace simbólico
+		if [ -L "$file" ]; then
+			file=$(readlink -f "$file")
+		fi
+		if [[ $(realpath $file) != "$REPO"* ]]; then
+			echo "No uses dotsync para editar archivos fuera del repositorio"
+			return 1
+		fi
+	done
+	"$EDITOR" "${files[@]}"
+	(
+		cd "$REPO"
+		git add -A > /dev/null
+		git commit -m "EDITAR: archivos en el repositorio" -m "Archivos editados: ${files[*]}" > /dev/null
+	)
+	return 0
+}
+
 RECURSION_DEPTH=0
 
 remove_path(){

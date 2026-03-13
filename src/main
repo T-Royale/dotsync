@@ -51,8 +51,26 @@ main(){
 				remove_path "$@" || exit 1
 			fi
 			;;
-		"edit") 
-			echo "Editar archivo de configuración" 
+		"edit")
+			if [ -z "$EDITOR" ]; then
+				echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar"
+				echo "Quieres definirla con el ayudante?"
+				read -r -p "Y/n: " ans
+				if [[ "${ans,,}" == "y" ]] || [ -z "$ans" ]; then
+					ui_set_editor || exit 1
+				fi
+				exit 
+			fi
+			if [ "$#" -eq 0 ]; then
+				local files=()
+				if ui_select_files "$REPO" files; then
+					edit_file "${files[@]}" || exit 1
+				else
+					echo "Selección cancelada"
+				fi
+			else 
+				edit_file "$@" || exit 1
+			fi
 			;;
 		"log") 
 			echo "Visualizar cambios realizados en los archivos del repositorio" 
