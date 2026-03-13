@@ -19,7 +19,7 @@ edit_file(){ 		# Soporte para editar múltiples archivos depende del editor
 	(
 		cd "$REPO"
 		git add -A > /dev/null
-		git commit -m "EDITAR: archivos en el repositorio" -m "Archivos editados: ${files[*]}" > /dev/null
+		git commit -m "EDITAR: ${files[*]}" -m "Archivos editados: ${files[*]}" > /dev/null
 	)
 	return 0
 }
