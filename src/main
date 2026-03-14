@@ -73,7 +73,7 @@ main(){
 			fi
 			;;
 		"log") 
-			echo "Visualizar cambios realizados en los archivos del repositorio" 
+			ui_git_diff || exit 1
 			;;
 		"undo") 
 			echo "Restaurar cambios realizados en el repositorio" 
