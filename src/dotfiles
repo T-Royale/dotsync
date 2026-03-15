@@ -1,8 +1,47 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+git_undo(){
+	local hash=$(ui_select_commit "Selecciona el commit a restaurar")
+	[ -z "$hash" ] && return
+	(
+		cd "$REPO"
+		local diff=$(git diff HEAD "$hash")
+		if [ -z "$diff" ]; then
+			echo "No se han realizado cambios en el repositorio desde este commit"
+			return
+		fi
+		pager "$diff"
+		echo "Seguro que quieres restaurar el repositorio al commit $hash?"
+		read -r -p "y/N: " ans
+		[[ "${ans,,}" != "y" ]] && return
+		local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
+		mapfile -t untracked_files <<< "$untracked_files"
+		if [ -n "$untracked_files" ]; then
+			echo "ADVERTENCIA: Los siguientes archivos no existían en el punto del repositorio que se desea restaurar:"
+			local untracked_file
+			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
+			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
+			read -r -p "Deseas continuar? y/N: " ans
+			[[ "${ans,,}" != "y" ]] && return 
+			remove_path "${untracked_files[@]}"
+		fi
+		stow -D . 2>/dev/null
+		if ! git restore --source="$hash" --staged --worktree -- . > /dev/null; then
+			echo "ERROR: Al restaurar el commit seleccionado"
+			return 1
+		fi
+        git clean -fd > /dev/null	# Limpiar archivos fantasma y directorios vacíos
+        if ! stow . > /dev/null; then
+			echo "ERROR: Al restaurar los enlaces simbólicos"
+			return 1
+		fi
+		git commit -m "VOLVER: A $hash" -m "Se volvió al estado del commit $hash" > /dev/null
+		echo "Commit restaurado con éxito"
+	)
+}
+
 edit_file(){ 		# Soporte para editar múltiples archivos depende del editor
-	set -x 
 	local files=($@)
 	local file
 	for file in "${files[@]}"; do

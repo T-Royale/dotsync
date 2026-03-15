@@ -73,10 +73,10 @@ main(){
 			fi
 			;;
 		"log") 
-			ui_git_diff || exit 1
+			ui_git_log || exit 1
 			;;
-		"undo") 
-			echo "Restaurar cambios realizados en el repositorio" 
+		"undo")
+			git_undo || exit 1
 			;;
 		"export") 
 			echo "Exportar repositorio a otro equipo" 

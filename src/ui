@@ -1,29 +1,34 @@
 #!/usr/bin/env bash
 
 # Funciones relacionadas con la interfaz de usuario
+pager(){
+	local content=$1
+	if command -v batcat > /dev/null; then
+		batcat -l Diff <<< "$content"
+	elif command -v bat > /dev/null ; then
+		bat -l Diff <<< "$content"
+	else 
+		less -R <<< "$content"
+	fi
+}
 
 ui_select_commit(){
 	(
 		cd "$REPO"
-		local commit=$(git log --oneline $@ | fzf \
-			--header "Selecciona el commit del que ver los cambios (ctrl+C para salir)" \
+		local commit=$(git log --oneline | fzf \
+			--header "$@ (ctrl+C para salir)" \
 			--preview 'git show --color=always {1}')
 		local hash=$(awk '{print $1}' <<< "$commit")
 		echo "$hash"
 	)
 }
 
-ui_git_diff(){
+ui_git_log(){
 	(
-		local selected=$(ui_select_commit)
+		local selected=$(ui_select_commit "Selecciona un commit para ver los detallles")
 		if [ -z "$selected" ]; then
 			echo "No se ha seleccionado ningún commit"
 			return 0
-		fi
-		local pager=()
-		if command -v batcat > /dev/null; then pager=("batcat" "-l" "diff");
-			elif command -v bat > /dev/null ; then pager=("bat" "-l" "Diff");
-			else pager=("less" "-R")
 		fi
 		cd "$REPO"
 		local diff=$(git diff "$selected" HEAD)
@@ -31,7 +36,7 @@ ui_git_diff(){
 			echo "No han habido cambios desde este commit"
 			return 0
 		fi
-		"${pager[@]}" <<< "$diff"
+		pager "$diff"
 	)
 }
 
