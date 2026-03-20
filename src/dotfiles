@@ -192,6 +192,10 @@ init_dotsync(){
 		echo "Error al crear repositorio en $REPO"
 		exit 1
 	fi
+	if ! mkdir -p "$TEMP"; then
+		echo "Error al crear carpeta de archivos temporales en $REPO"
+		exit 1
+	fi
 	(
 		cd "$REPO"
 		if ! git init . --quiet; then

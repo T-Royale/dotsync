@@ -3,9 +3,13 @@
 readonly DEPS=("curl" "git" "stow" "fzf" "tree")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
-EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/logs/*" "*/tmp/*")
+EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/logs/*" "*/tmp/*" "*/.tmp/*")
+readonly TEMP="$REPO/.tmp"
 
 shopt -s nullglob
+shopt -s dotglob
+shopt -s globstar
+timestamp=$(date +%s)
 
 main(){
 	check_deps "${DEPS[@]}" || exit 1
@@ -34,9 +38,9 @@ main(){
 			;;
 		"list")
 			if command -v eza > /dev/null; then
-		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README" "$REPO"
+		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README|.tmp" "$REPO"
 			else
-				tree -a -C -L 5 -I ".git|.stow-local-ignore|README" "$REPO"
+				tree -a -C -L 5 -I ".git|.stow-local-ignore|README|.tmp" "$REPO"
 			fi
 			;;
 		"remove") 
@@ -71,10 +75,10 @@ main(){
 			git_undo || exit 1
 			;;
 		"export") 
-			echo "Exportar repositorio a otro equipo" 
+		 	sync_export "$@" || exit 1
 			;;
 		"import") 
-			echo "Importar repositorio desde un equipo" 
+		 	sync_import "$@" || exit 1
 			;;
 		"sync") 
 			echo "Sincronización con repositorio de git remoto" 

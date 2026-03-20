@@ -67,10 +67,10 @@ ui_check_editor(){
 	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
 	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
 }
-
 ui_select_files(){
 	local -n files_arr="$2"		# El output será la variable pasada como segundo argumento
 	local -a exclude_path
+	local msg=${3:-"Selecciona los archivos deseados"}
 	for pattern in "${EXCLUDE[@]}"; do
 		exclude_path+=("-not" "-path" "$pattern")
 	done
@@ -79,7 +79,7 @@ ui_select_files(){
 		echo "No hay archivos para buscar"
 		return 0
 	fi
-	local selection=$(echo -e "$found_files" | fzf -m --header="Selecciona archivos para añadir (TAB para multi-selección)")
+	local selection=$(echo -e "$found_files" | fzf -m --header="$msg (TAB para multi-selección)")
 	[ -z "$selection" ] && return 1
 	mapfile -t files_arr <<< "$selection"	# Convertir output de fzf a array
 }

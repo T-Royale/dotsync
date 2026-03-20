@@ -5,7 +5,7 @@ BINDIR=$(PWD)/bin
 CONFDIR=$(HOME)/.config/dotsync
 CONF=$(CONFDIR)/dotsync.conf
 
-all:
+all: 
 	@echo "aún no hay ninguna regla"
 
 test:
