@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+
+sync_import(){
+	check_deps "tar" "sha256sum" "gpg" "socat" "ping" || return 1
+	local files=()
+	local port=57342
+	local arg
+	local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
+	shift
+	if ! ping -qc 1 "$ip" > /dev/null; then
+		echo "ERROR: Al conectarse al servidor"
+		return 1
+	fi
+	while getopts "p:" arg; do
+		case "$arg" in
+			p) 	
+				# Validar numero de puerto
+				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
+					port="$OPTARG"
+				else 
+					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO"
+					return 1
+				fi
+				;;
+			*)
+		esac
+	done
+	local dstdir="$TEMP/import-${timestamp}"
+	mkdir -p "$dstdir"
+	local tarname="import-${timestamp}.tar.gz"
+	local checksum="import-${timestamp}.sum"
+	local bundle="import-${timestamp}-bundle.tar.gz" 	# Bundle con el tarball y el checksum
+	local encrypted="${bundle}.gpg" 					# Contiene el tarball final encriptado
+	(
+		cd "$dstdir" || return 1
+		if ! socat -u "TCP:${ip}:${port}" STDOUT > "$encrypted" ; then
+			echo "ERROR: Al obtener archivo cifrado a través de la red"
+			return 1
+		else
+			echo "Archivo recibido con éxito"
+		fi
+		if ! gpg -d --output "$bundle" "$encrypted"; then
+			echo "ERROR: Al desencriptar el archivo obtenido"
+			return 1
+		fi
+		if ! tar -xzf "$bundle"; then
+			echo "ERROR: al descomprimir el bundle"
+			return 1
+		fi
+		mv export*.tar.gz "$tarname"	# Renombrar los archivos
+		mv export*.sum "$checksum"		# Renombrar los archivos
+		if ! [[ $(sha256sum "$tarname" | awk '{ print $1 }') == $(cat "$checksum") ]]; then
+			echo "CUIDADO: EL CHECKSUM DEL ARCHIVO RECIBIDO NO ENCAJA CON EL DEL ARCHIVO ENVIADO"
+			echo "EL ARCHIVO HA SIDO MODIFICADO DURANTE SU ENVÍO POR UN AGENTE EXTERNO"
+			return 2
+		else
+			echo "Checksum verificado con éxito"
+		fi
+		local files_dir="${dstdir}/files_dir"
+		mkdir "$files_dir"
+		if ! tar -xzf "$tarname" -C "$files_dir"; then
+			echo "ERROR: Al descomprimir archivo para obtener dotfiles"
+			return 1
+		fi
+		cd "$files_dir"
+		shopt -s dotglob
+		shopt -s globstar
+		local file
+		local err=0 					# Comprobar si ha habido un error
+		local -a imported_files			# Archivos importados con éxito
+		for file in **; do
+			[ -d "$file" ] && continue	# Saltar si es un directorio
+			file_real=$(realpath "$file")
+			file_repo="${file_real/${files_dir}/${REPO}}"
+			# Crear directorio destino si no existe
+			local dest_dir="${file_repo%/*}"
+			mkdir -p "$dest_dir"
+			
+			if [ -e "$file_repo" ]; then
+				echo "$file ya existe en el repositorio"
+				read -r -p "Deseas reemplazarlo? y/N: " ans
+				[[ "${ans,,}" != "y" ]] && continue
+			fi
+
+			if cp --force "$file" "$file_repo"; then
+				imported_files+=("$file")
+			else 
+				echo "ERROR: Al copiar $file"
+				(( err++ ))
+				continue
+			fi
+		done
+		cd $REPO
+		if [ "$err" -gt 0 ]; then
+			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado"
+			git clean -fd
+			return 1
+		else
+			echo "Importación completada, se guardarán los cambios"
+			git add -A
+			git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}"
+			stow .
+		fi
+	) || return 1
+}
+
+sync_export(){
+	check_deps "tar" "sha256sum" "gpg" "socat" || return 1
+	local files=()
+	local port=57342
+	local arg
+	while getopts "p:" arg; do
+		case "$arg" in
+			p)
+				# Validar numero de puerto
+				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
+					port="$OPTARG"
+				else 
+					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO"
+					return 1
+				fi
+				;;
+			*)
+		esac
+	done
+	ui_select_files "$REPO" files "Selecciona los archivos para exportar"
+	local dstdir="$TEMP/export-${timestamp}"
+	mkdir -p "$dstdir"
+	local tarname="export-${timestamp}.tar.gz"
+	local checksum="export-${timestamp}.sum"
+	local bundle="export-${timestamp}-bundle.tar.gz" 	# Bundle con el tarball y el checksum
+	local encrypted="${bundle}.gpg" 					# Contiene el tarball final encriptado
+	(
+		cd "$REPO" || return 1
+		for i in "${!files[@]}"; do
+			echo "${files[$i]}"
+			files[$i]="${files[$i]#"$REPO"/}"	# obtener ruta relativa al repositorio
+		done
+		if ! tar -czf "${dstdir}/${tarname}" "${files[@]}" > /dev/null; then
+			echo "error: al generar tarball para exportar"
+			return 1
+		fi
+		cd "$dstdir"
+		if ! sha256sum "$tarname" | awk '{ print $1 }' > "$checksum"; then
+			echo "ERROR: Al generar checksum"
+			return 1
+		fi
+		if ! tar -czf "$bundle" "$tarname" "$checksum" > /dev/null; then
+			echo "ERROR: Al generar tarball para cifrar"
+			return 1
+		fi	
+		if ! gpg -c --output "$encrypted" "$bundle" ; then
+			echo "ERROR: Al cifrar contenidos para exportar"
+			return 1
+		fi
+
+		echo "Preparado para exportar configuración, el cliente puede iniciar una conexión"
+
+		if ! socat -u "FILE:${encrypted}" "TCP-LISTEN:${port},reuseaddr"; then
+			echo "ERROR: Al enviar archivo encriptado a través de la red"
+			return 1
+		else
+			echo "Los archivos seleccionados han sido exportados correctamente"
+		fi
+	) || return 1
+}
