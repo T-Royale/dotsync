@@ -13,7 +13,7 @@ sync_import(){
 	fi
 	while getopts "p:" arg; do
 		case "$arg" in
-			p)
+			p) 	
 				# Validar numero de puerto
 				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
 					port="$OPTARG"
@@ -56,19 +56,52 @@ sync_import(){
 		else
 			echo "Checksum verificado con éxito"
 		fi
-		local files_dir=files_dir
+		local files_dir="${dstdir}/files_dir"
 		mkdir "$files_dir"
 		if ! tar -xzf "$tarname" -C "$files_dir"; then
 			echo "ERROR: Al descomprimir archivo para obtener dotfiles"
 			return 1
 		fi
 		cd "$files_dir"
+		shopt -s dotglob
+		shopt -s globstar
 		local file
+		local err=0 					# Comprobar si ha habido un error
+		local -a imported_files			# Archivos importados con éxito
 		for file in **; do
-			# TODO: Configurar para añadir archivos en esa carpeta
-			echo "Found file: $file"
+			[ -d "$file" ] && continue	# Saltar si es un directorio
+			file_real=$(realpath "$file")
+			file_repo="${file_real/${files_dir}/${REPO}}"
+			# Crear directorio destino si no existe
+			local dest_dir="${file_repo%/*}"
+			mkdir -p "$dest_dir"
+			
+			if [ -e "$file_repo" ]; then
+				echo "$file ya existe en el repositorio"
+				read -r -p "Deseas reemplazarlo? y/N: " ans
+				[[ "${ans,,}" != "y" ]] && continue
+			fi
+
+			if cp --force "$file" "$file_repo"; then
+				imported_files+=("$file")
+			else 
+				echo "ERROR: Al copiar $file"
+				(( err++ ))
+				continue
+			fi
 		done
-	)
+		cd $REPO
+		if [ "$err" -gt 0 ]; then
+			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado"
+			git clean -fd
+			return 1
+		else
+			echo "Importación completada, se guardarán los cambios"
+			git add -A
+			git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}"
+			stow .
+		fi
+	) || return 1
 }
 
 sync_export(){
@@ -126,6 +159,8 @@ sync_export(){
 		if ! socat -u "FILE:${encrypted}" "TCP-LISTEN:${port},reuseaddr"; then
 			echo "ERROR: Al enviar archivo encriptado a través de la red"
 			return 1
+		else
+			echo "Los archivos seleccionados han sido exportados correctamente"
 		fi
-	)
+	) || return 1
 }

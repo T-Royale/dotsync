@@ -7,8 +7,6 @@ EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/
 readonly TEMP="$REPO/.tmp"
 
 shopt -s nullglob
-shopt -s dotglob
-shopt -s globstar
 timestamp=$(date +%s)
 
 main(){
