@@ -1,16 +1,84 @@
 #!/usr/bin/env bash
 
+sync_remote(){
+	local opt=$1
+	shift
+	local remote=$()
+	(
+		cd "$REPO"
+		remote=$(git remote)
+	)
+	case "$opt" in
+		"push")
+			(
+				if [ -z "$remote" ]; then
+					echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto"
+					return 1
+				fi
+				cd "$REPO"
+				if ! git push; then
+					echo "ERROR: Al subir los cambios al repositorio remoto"
+					return 1
+				else
+					echo "Los cambios se han subido exitosamente al repositorio remoto"
+				fi
+			) || return 1
+			;;
+		"pull")
+			(
+				if [ -z "$remote" ]; then
+					echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto"
+					return 1
+				fi
+				cd "$REPO"
+				if ! git pull --rebase; then
+					echo "ERROR: Al descargar los cambios del repositorio remoto"
+					return 1
+				else 
+					echo "Descargado el contenido del repositorio remoto con éxito"
+				fi
+				stow .
+			) || return 1
+			;;
+		"set-remote")
+			(
+				cd "$REPO"
+				if [ -z "$remote" ]; then
+					if ! git remote add origin "$1"; then
+						echo "ERROR: Al crear y establecer enlace remoto para el repositorio"
+						return 1
+					fi
+				else
+					if ! git remote set-url "$remote" "$1"; then
+						echo "ERROR: Al modificar enlace de repositorio remoto"
+					fi
+				fi
+			) || return 1
+			;;
+		"get-remote")
+		 	(
+				if [ -z "$remote" ]; then
+					echo "ERROR: No existe un repositorio remoto"
+					return 1
+				fi
+				cd "$REPO"
+				local link=$(git remote get-url "$remote")
+				echo "El repositorio remoto definido es"
+				echo "$link"
+			) || return 1
+			;;
+		*)
+			echo "Opción $opt desconocida"
+			return 1
+			;;
+	esac
+}
+
 sync_import(){
 	check_deps "tar" "sha256sum" "gpg" "socat" "ping" || return 1
-	local files=()
 	local port=57342
 	local arg
-	local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
-	shift
-	if ! ping -qc 1 "$ip" > /dev/null; then
-		echo "ERROR: Al conectarse al servidor"
-		return 1
-	fi
+	OPTIND=1
 	while getopts "p:" arg; do
 		case "$arg" in
 			p) 	
@@ -25,6 +93,13 @@ sync_import(){
 			*)
 		esac
 	done
+	shift $((OPTIND-1))
+	local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
+	shift
+	if ! ping -qc 1 "$ip" > /dev/null; then
+		echo "ERROR: Al conectarse al servidor"
+		return 1
+	fi
 	local dstdir="$TEMP/import-${timestamp}"
 	mkdir -p "$dstdir"
 	local tarname="import-${timestamp}.tar.gz"
@@ -109,6 +184,7 @@ sync_export(){
 	local files=()
 	local port=57342
 	local arg
+	OPTIND=1
 	while getopts "p:" arg; do
 		case "$arg" in
 			p)
@@ -123,7 +199,30 @@ sync_export(){
 			*)
 		esac
 	done
-	ui_select_files "$REPO" files "Selecciona los archivos para exportar"
+	shift $((OPTIND-1))
+	local file
+	if [[ $1 == "all" ]]; then
+		shopt -s dotglob
+		shopt -s globstar
+		for file in "$REPO"/**; do
+			[ -f "$file" ] && ! is_excluded "$file" && files+=("$file")
+		done
+		shift
+	fi
+	for file in $@; do
+		if [ -L "$file" ]; then
+			file=$(readlink -f "$file")
+		fi
+		file=$(realpath "$file")
+		if [[ "$file" == "$REPO"* ]]; then
+			files+=("$file")
+		else 
+			echo "ERROR: $file no pertenece al repositorio"
+			return 1
+		fi	
+	done
+	[ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
+	exit
 	local dstdir="$TEMP/export-${timestamp}"
 	mkdir -p "$dstdir"
 	local tarname="export-${timestamp}.tar.gz"

@@ -79,7 +79,7 @@ main(){
 		 	sync_import "$@" || exit 1
 			;;
 		"sync") 
-			echo "Sincronización con repositorio de git remoto" 
+		 	sync_remote "$@" || exit 1
 			;;
 		*) 
 			help
