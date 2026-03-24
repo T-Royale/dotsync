@@ -3,8 +3,8 @@
 readonly DEPS=("curl" "git" "stow" "fzf" "tree")
 readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
-EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "*cache*" "*.log" "*/logs/*" "*/tmp/*" "*/.tmp/*")
 readonly TEMP="$REPO/.tmp"
+EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "$TEMP")
 
 shopt -s nullglob
 timestamp=$(date +%s)
