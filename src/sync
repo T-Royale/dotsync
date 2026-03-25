@@ -16,7 +16,7 @@ sync_remote(){
 					return 1
 				fi
 				cd "$REPO"
-				if ! git push; then
+				if ! git push "$@"; then
 					echo "ERROR: Al subir los cambios al repositorio remoto"
 					return 1
 				else
@@ -31,7 +31,7 @@ sync_remote(){
 					return 1
 				fi
 				cd "$REPO"
-				if ! git pull --rebase; then
+				if ! git pull "$@"; then
 					echo "ERROR: Al descargar los cambios del repositorio remoto"
 					return 1
 				else 
