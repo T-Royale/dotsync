@@ -6,6 +6,7 @@ load_config() {
 	fi
 	if ! source "$CONF"; then
 		echo "Ha habido un error al leer el archivo de configuración"
+		echo "Consulta dotsync-conf(1) para más información"
 		return 1
 	fi
 	EXCLUDE+=("${conf_exclude[@]}")

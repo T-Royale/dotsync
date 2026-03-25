@@ -69,6 +69,7 @@ sync_remote(){
 			;;
 		*)
 			echo "Opción $opt desconocida"
+			echo "Consulta dotsync-sync(1) para más información."
 			return 1
 			;;
 	esac

@@ -22,6 +22,7 @@ git_undo(){
 			local untracked_file
 			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
 			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
+			echo "Consulta dotsync-repo(1) para más información"
 			read -r -p "Deseas continuar? y/N: " ans
 			[[ "${ans,,}" != "y" ]] && return 
 			remove_path "${untracked_files[@]}"

@@ -42,7 +42,7 @@ ui_git_log(){
 
 ui_check_editor(){
 	[ -n "$EDITOR" ] && return
-	echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar"
+	echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar, más información en dotsync-ui(1)"
 	echo "Quieres definirla con el ayudante?"
 	read -r -p "Y/n: " ans
 	[[ "${ans,,}" == "n" ]] && return

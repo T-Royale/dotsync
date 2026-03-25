@@ -89,17 +89,18 @@ main(){
 
 help(){
 	printf "Uso: <%b> [opción1] [opción2] ...\n" "$0"
-	echo -e "\tinit\t- Iniciar repositorio dotsync"
-	echo -e "\tadd\t- Añadir archivo o carpeta al repositorio"
-	echo -e "\tlist\t- Mostrar elementos del repositorio dotsync"
-	echo -e "\tremove\t- Sacar archivo o carpeta del repositorio"
-	echo -e "\tedit\t- Editar archivo del repositorio"
-	echo -e "\tlog\t- Ver listado de cambios realizados"
-	echo -e "\tundo\t- Restaurar cambios en los archivos del repositorio"
-	echo -e "\texport\t- Exportar repositorio a otro equipo"
-	echo -e "\timport\t- Importar repositorio desde un equipo"
-	echo -e "\tsync\t- Opciones de sincronización con repositorio de git remoto"
-	echo -e "\thelp\t- Muestra este menú de ayuda"
+	echo -e "\tinit\t\t- Iniciar repositorio dotsync"
+	echo -e "\tadd\t\t- Añadir archivo o carpeta al repositorio"
+	echo -e "\tlist\t\t- Mostrar elementos del repositorio dotsync"
+	echo -e "\tremove\t\t- Sacar archivo o carpeta del repositorio"
+	echo -e "\tedit [archivo]\t- Editar archivo del repositorio"
+	echo -e "\tlog\t\t- Ver listado de cambios realizados"
+	echo -e "\tundo\t\t- Restaurar cambios en los archivos del repositorio"
+	echo -e "\texport\t\t- Exportar repositorio a otro equipo"
+	echo -e "\timport [host]\t- Importar repositorio desde un equipo"
+	echo -e "\tsync [opción]\t- Opciones de sincronización con repositorio de git remoto"
+	echo -e "\thelp\t\t- Muestra este menú de ayuda"
+	echo -e "Para más información, consulta la página del manual dotsync(1)"
 }
 
 main $@
