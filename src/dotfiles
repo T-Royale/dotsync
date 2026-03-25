@@ -22,6 +22,7 @@ git_undo(){
 			local untracked_file
 			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
 			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
+			echo "Consulta dotsync-repo(1) para más información"
 			read -r -p "Deseas continuar? y/N: " ans
 			[[ "${ans,,}" != "y" ]] && return 
 			remove_path "${untracked_files[@]}"
@@ -66,14 +67,15 @@ edit_file(){ 		# Soporte para editar múltiples archivos depende del editor
 RECURSION_DEPTH=0
 
 remove_path(){
+	local files=()
 	if [ "$#" -lt 1 ]; then
 		echo "No se ha especificado ningún archivo o directorio"
 		return 1
 	fi
 	# Desvincular enlaces simbólicos
 	if [ "$RECURSION_DEPTH" -eq 0 ]; then
-        ( cd "$REPO" && stow -D . > /dev/null 2>&1 )
-    fi
+		( cd "$REPO" && stow -D . > /dev/null 2>&1 )
+	fi
 	((RECURSION_DEPTH++))
 	for path in "$@"; do
 		if ! [ -e "$path" ]; then 
@@ -84,7 +86,7 @@ remove_path(){
 		if [[ "$full_path" != "$REPO"* ]]; then
 			echo "ERROR: No puedes eliminar elementos fuera del repositorio"
 			continue
-    	fi
+		fi
 		local real_path="${full_path/$REPO/$HOME}"	# Ruta fuera del repositorio
 		if ! mkdir -p "${real_path%/*}"; then
 			echo "No se pudo crear directorio para $real_path"
@@ -99,6 +101,8 @@ remove_path(){
 			if ! mv "$full_path" "$real_path"; then
 				echo "ERROR: No se pudo mover el archivo"
 				continue;
+			else
+				files+=("$path")
 			fi
 			find "$REPO" -mindepth 1 -type d -empty -delete		# Eliminar carpetas vacías
 		elif [ -d "$full_path" ]; then
@@ -115,8 +119,8 @@ remove_path(){
 			cd "$REPO"
 			git add -A  > /dev/null
 			if ! git diff-index --quiet HEAD --; then	# Evitar comitar sin cambios
-                git commit -m "QUITAR: Archivos restaurados al HOME" > /dev/null
-            fi
+				git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[@]}" > /dev/null
+			fi
 			stow . > /dev/null		# Volver a vincular lo que queda
 		)
 	fi
@@ -124,6 +128,7 @@ remove_path(){
 }
 
 add_path(){
+	local files=()
 	if [ "$#" -lt 1 ]; then
 		echo "No se ha especificado ningún archivo o directorio"
 		return 1
@@ -131,9 +136,9 @@ add_path(){
 	((RECURSION_DEPTH++))
 	for path in "$@"; do
 		if [ -L "$path" ]; then
-            echo "OMITIDO: $path es un enlace simbólico (posiblemente ya en dotsync)"
-            continue
-        fi
+			echo "OMITIDO: $path es un enlace simbólico (posiblemente ya en dotsync)"
+			continue
+		fi
 		if ! [ -e "$path" ]; then 
 			echo "ERROR: $path no existe"
 			continue
@@ -146,11 +151,11 @@ add_path(){
 		if [[ "$full_path" == "$REPO"* ]]; then
 			echo "ERROR: No puedes añadir el propio repositorio dotsync"
 			continue
-    	fi
+		fi
 		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
 		local basename="${full_path##*/}"
 		if is_excluded "$full_path"; then
-		 	echo "OMITIDO $path"
+			echo "OMITIDO $path"
 			continue
 		fi
 		if [ -f "$full_path" ]; then
@@ -162,6 +167,8 @@ add_path(){
 			if ! mv "$full_path" "$repo_path"; then
 				echo "ERROR: No se pudo mover el archivo"
 				continue;
+			else
+				files+=("$path")
 			fi
 		elif [ -d "$full_path" ]; then
 			add_path "$full_path"/*		# Llama a esta misma función recursivamente
@@ -179,7 +186,7 @@ add_path(){
 			if [ "$#" -eq 1 ]; then
 				git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" > /dev/null
 			else
-				git commit -m "AÑADIR: Varios archivos" -m "Se han añadido con éxito varios archivos y/o directorios" > /dev/null
+				git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[@]}" > /dev/null
 			fi
 			stow . > /dev/null
 		)
