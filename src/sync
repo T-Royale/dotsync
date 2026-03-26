@@ -12,12 +12,12 @@ sync_remote(){
 		"push")
 			(
 				if [ -z "$remote" ]; then
-					echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto"
+					echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto" >&2
 					return 1
 				fi
 				cd "$REPO"
 				if ! git push "$@"; then
-					echo "ERROR: Al subir los cambios al repositorio remoto"
+					echo "ERROR: Al subir los cambios al repositorio remoto" >&2
 					return 1
 				else
 					echo "Los cambios se han subido exitosamente al repositorio remoto"
@@ -27,12 +27,12 @@ sync_remote(){
 		"pull")
 			(
 				if [ -z "$remote" ]; then
-					echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto"
+					echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto" >&2
 					return 1
 				fi
 				cd "$REPO"
 				if ! git pull "$@"; then
-					echo "ERROR: Al descargar los cambios del repositorio remoto"
+					echo "ERROR: Al descargar los cambios del repositorio remoto" >&2
 					return 1
 				else 
 					echo "Descargado el contenido del repositorio remoto con éxito"
@@ -45,12 +45,12 @@ sync_remote(){
 				cd "$REPO"
 				if [ -z "$remote" ]; then
 					if ! git remote add origin "$1"; then
-						echo "ERROR: Al crear y establecer enlace remoto para el repositorio"
+						echo "ERROR: Al crear y establecer enlace remoto para el repositorio" >&2
 						return 1
 					fi
 				else
 					if ! git remote set-url "$remote" "$1"; then
-						echo "ERROR: Al modificar enlace de repositorio remoto"
+						echo "ERROR: Al modificar enlace de repositorio remoto" >&2
 					fi
 				fi
 			) || return 1
@@ -87,7 +87,7 @@ sync_import(){
 				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
 					port="$OPTARG"
 				else 
-					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO"
+					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
 					return 1
 				fi
 				;;
@@ -98,7 +98,7 @@ sync_import(){
 	local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
 	shift
 	if ! ping -qc 1 "$ip" > /dev/null; then
-		echo "ERROR: Al conectarse al servidor"
+		echo "ERROR: Al conectarse al servidor" >&2
 		return 1
 	fi
 	local dstdir="$TEMP/import-${timestamp}"
@@ -110,17 +110,17 @@ sync_import(){
 	(
 		cd "$dstdir" || return 1
 		if ! socat -u "TCP:${ip}:${port}" STDOUT > "$encrypted" ; then
-			echo "ERROR: Al obtener archivo cifrado a través de la red"
+			echo "ERROR: Al obtener archivo cifrado a través de la red" >&2
 			return 1
 		else
 			echo "Archivo recibido con éxito"
 		fi
 		if ! gpg -d --output "$bundle" "$encrypted"; then
-			echo "ERROR: Al desencriptar el archivo obtenido"
+			echo "ERROR: Al desencriptar el archivo obtenido" >&2
 			return 1
 		fi
 		if ! tar -xzf "$bundle"; then
-			echo "ERROR: al descomprimir el bundle"
+			echo "ERROR: al descomprimir el bundle" >&2
 			return 1
 		fi
 		mv export*.tar.gz "$tarname"	# Renombrar los archivos
@@ -135,7 +135,7 @@ sync_import(){
 		local files_dir="${dstdir}/files_dir"
 		mkdir "$files_dir"
 		if ! tar -xzf "$tarname" -C "$files_dir"; then
-			echo "ERROR: Al descomprimir archivo para obtener dotfiles"
+			echo "ERROR: Al descomprimir archivo para obtener dotfiles" >&2
 			return 1
 		fi
 		cd "$files_dir"
@@ -161,14 +161,14 @@ sync_import(){
 			if cp --force "$file" "$file_repo"; then
 				imported_files+=("$file")
 			else 
-				echo "ERROR: Al copiar $file"
+				echo "ERROR: Al copiar $file" >&2
 				(( err++ ))
 				continue
 			fi
 		done
 		cd $REPO
 		if [ "$err" -gt 0 ]; then
-			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado"
+			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado" >&2
 			git clean -fd
 			return 1
 		else
@@ -193,7 +193,7 @@ sync_export(){
 				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
 					port="$OPTARG"
 				else 
-					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO"
+					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
 					return 1
 				fi
 				;;
@@ -218,7 +218,7 @@ sync_export(){
 		if [[ "$file" == "$REPO"* ]]; then
 			files+=("$file")
 		else 
-			echo "ERROR: $file no pertenece al repositorio"
+			echo "ERROR: $file no pertenece al repositorio" >&2
 			return 1
 		fi	
 	done
@@ -237,27 +237,27 @@ sync_export(){
 			files[$i]="${files[$i]#"$REPO"/}"	# obtener ruta relativa al repositorio
 		done
 		if ! tar -czf "${dstdir}/${tarname}" "${files[@]}" > /dev/null; then
-			echo "error: al generar tarball para exportar"
+			echo "ERROR: al generar tarball para exportar" >&2
 			return 1
 		fi
 		cd "$dstdir"
 		if ! sha256sum "$tarname" | awk '{ print $1 }' > "$checksum"; then
-			echo "ERROR: Al generar checksum"
+			echo "ERROR: Al generar checksum" >&2
 			return 1
 		fi
 		if ! tar -czf "$bundle" "$tarname" "$checksum" > /dev/null; then
-			echo "ERROR: Al generar tarball para cifrar"
+			echo "ERROR: Al generar tarball para cifrar" >&2
 			return 1
 		fi	
 		if ! gpg -c --output "$encrypted" "$bundle" ; then
-			echo "ERROR: Al cifrar contenidos para exportar"
+			echo "ERROR: Al cifrar contenidos para exportar" >&2
 			return 1
 		fi
 
 		echo "Preparado para exportar configuración, el cliente puede iniciar una conexión"
 
 		if ! socat -u "FILE:${encrypted}" "TCP-LISTEN:${port},reuseaddr"; then
-			echo "ERROR: Al enviar archivo encriptado a través de la red"
+			echo "ERROR: Al enviar archivo encriptado a través de la red" >&2
 			return 1
 		else
 			echo "Los archivos seleccionados han sido exportados correctamente"

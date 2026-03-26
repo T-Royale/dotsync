@@ -29,12 +29,12 @@ git_undo(){
 		fi
 		stow -D . 2>/dev/null
 		if ! git restore --source="$hash" --staged --worktree -- . > /dev/null; then
-			echo "ERROR: Al restaurar el commit seleccionado"
+			echo "ERROR: Al restaurar el commit seleccionado" >&2
 			return 1
 		fi
         git clean -fd > /dev/null	# Limpiar archivos fantasma y directorios vacíos
         if ! stow . > /dev/null; then
-			echo "ERROR: Al restaurar los enlaces simbólicos"
+			echo "ERROR: Al restaurar los enlaces simbólicos" >&2
 			return 1
 		fi
 		git commit -m "VOLVER: A $hash" -m "Se volvió al estado del commit $hash" > /dev/null
@@ -79,12 +79,12 @@ remove_path(){
 	((RECURSION_DEPTH++))
 	for path in "$@"; do
 		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe"
+			echo "ERROR: $path no existe" >&2
 			continue
 		fi
 		local full_path=$(realpath "$path")
 		if [[ "$full_path" != "$REPO"* ]]; then
-			echo "ERROR: No puedes eliminar elementos fuera del repositorio"
+			echo "ERROR: No puedes eliminar elementos fuera del repositorio" >&2
 			continue
 		fi
 		local real_path="${full_path/$REPO/$HOME}"	# Ruta fuera del repositorio
@@ -99,7 +99,7 @@ remove_path(){
 		if [ -f "$full_path" ]; then
 			echo "Moviendo $full_path a $real_path"
 			if ! mv "$full_path" "$real_path"; then
-				echo "ERROR: No se pudo mover el archivo"
+				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
 			else
 				files+=("$path")
@@ -108,7 +108,7 @@ remove_path(){
 		elif [ -d "$full_path" ]; then
 			remove_path "$full_path"/*		# Llama a esta misma función recursivamente
 		else 
-			echo "ERROR: $path no es un archivo o un directorio"
+			echo "ERROR: $path no es un archivo o un directorio" >&2
 			continue
 		fi
 	done
@@ -140,16 +140,16 @@ add_path(){
 			continue
 		fi
 		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe"
+			echo "ERROR: $path no existe" >&2
 			continue
 		fi
 		local full_path=$(realpath "$path")
 		if ! [[ "$full_path" == "$HOME"* ]]; then
-			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME"
+			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME" >&2
 			continue
 		fi
 		if [[ "$full_path" == "$REPO"* ]]; then
-			echo "ERROR: No puedes añadir el propio repositorio dotsync"
+			echo "ERROR: No puedes añadir el propio repositorio dotsync" >&2
 			continue
 		fi
 		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
@@ -160,12 +160,12 @@ add_path(){
 		fi
 		if [ -f "$full_path" ]; then
 			if ! mkdir -p "${repo_path%/*}"; then
-				echo "ERROR: No se pudo crear directorio ${repo_path%/*}"
+				echo "ERROR: No se pudo crear directorio ${repo_path%/*}" >&2
 				continue;
 			fi
 			echo "Moviendo $full_path a $repo_path"
 			if ! mv "$full_path" "$repo_path"; then
-				echo "ERROR: No se pudo mover el archivo"
+				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
 			else
 				files+=("$path")
@@ -173,7 +173,7 @@ add_path(){
 		elif [ -d "$full_path" ]; then
 			add_path "$full_path"/*		# Llama a esta misma función recursivamente
 		else 
-			echo "ERROR: $path no es un archivo o un directorio"
+			echo "ERROR: $path no es un archivo o un directorio" >&2
 			continue
 		fi
 	done
