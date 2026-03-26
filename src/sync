@@ -154,8 +154,14 @@ sync_import(){
 			
 			if [ -e "$file_repo" ]; then
 				echo "$file ya existe en el repositorio"
-				read -r -p "Deseas reemplazarlo? y/N: " ans
-				[[ "${ans,,}" != "y" ]] && continue
+				echo "¿Deseas reemplazarlo?"
+				local ans
+				select ans in "Sí: Reemplazar archivo existente por archivo descargado" "No: Dejar archivo existente como está"; do
+					[ -n "$ans" ] break;
+				done
+				if [[ "$ans" == "No"* ]]; then
+					continue
+				fi
 			fi
 
 			if cp --force "$file" "$file_repo"; then

@@ -13,8 +13,13 @@ git_undo(){
 		fi
 		pager "$diff"
 		echo "Seguro que quieres restaurar el repositorio al commit $hash?"
-		read -r -p "y/N: " ans
-		[[ "${ans,,}" != "y" ]] && return
+		local ans
+		select ans in "Sí" "No"; do
+			[ -n "$ans" ] break;
+		done
+		if [[ "$ans" == "No" ]]; then
+			return
+		fi
 		local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
 		mapfile -t untracked_files <<< "$untracked_files"
 		if [ -n "$untracked_files" ]; then
@@ -23,8 +28,14 @@ git_undo(){
 			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
 			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
 			echo "Consulta dotsync-repo(1) para más información"
-			read -r -p "Deseas continuar? y/N: " ans
-			[[ "${ans,,}" != "y" ]] && return 
+			echo "¿Deseas continuar?"
+			local ans
+			select ans in "Sí: Continuar con el undo" "No: Salir de dotsync"; do
+				[ -n "$ans" ] break;
+			done
+			if [[ "$ans" == "No"* ]]; then
+				return 		# Salir sin continuar
+			fi
 			remove_path "${untracked_files[@]}"
 		fi
 		stow -D . 2>/dev/null
