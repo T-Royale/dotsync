@@ -19,9 +19,9 @@ MANPATH=/usr/share/man/man1
 INSTALL_DIR=/usr/bin
 INSTALL_BIN=$(INSTALL_DIR)/dotsync
 
-all: $(BIN) $(CONF) man-install
+all: $(BIN) $(CONF) man
 
-install: all
+install: $(BIN) $(CONF) man-install
 	@sudo mv $(BIN) $(INSTALL_BIN)
 	@sudo chmod +x $(INSTALL_BIN)
 	@echo "dotsync instalado con éxito"
