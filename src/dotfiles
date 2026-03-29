@@ -51,7 +51,7 @@ git_undo(){
 		echo "Seguro que quieres restaurar el repositorio al commit $hash?"
 		local ans
 		select ans in "Sí" "No"; do
-			[ -n "$ans" ] break;
+			[ -n "$ans" ] && break;
 		done
 		if [[ "$ans" == "No" ]]; then
 			return
@@ -59,7 +59,7 @@ git_undo(){
 		local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
 		mapfile -t untracked_files <<< "$untracked_files"
 		if [ -n "$untracked_files" ]; then
-			echo "ADVERTENCIA: Los siguientes archivos no existían en el punto del repositorio que se desea restaurar:"
+			echo "ADVERTENCIA: es archivos no existían en el punto del repositorio que se desea restaurar:"
 			local untracked_file
 			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
 			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
@@ -67,7 +67,7 @@ git_undo(){
 			echo "¿Deseas continuar?"
 			local ans
 			select ans in "Sí: Continuar con el undo" "No: Salir de dotsync"; do
-				[ -n "$ans" ] break;
+				[ -n "$ans" ] && break;
 			done
 			if [[ "$ans" == "No"* ]]; then
 				return 		# Salir sin continuar
