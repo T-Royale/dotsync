@@ -47,7 +47,7 @@ ui_check_editor(){
 	echo "Quieres definirla con el ayudante?"
 	local ans
 	select ans in "Sí: ayúdame a configurar el editor" "No: Definir por mi cuenta"; do
-		[ -n "$ans" ] break;
+		[ -n "$ans" ] && break;
 	done
 	if [[ "$ans" == "No"* ]]; then
 		return 		# Salir sin continuar
