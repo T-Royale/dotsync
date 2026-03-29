@@ -10,6 +10,10 @@ shopt -s nullglob
 timestamp=$(date +%s)
 
 main(){
+	if ! [ -d "$REPO" ]; then
+		echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
+		exit 1
+	fi
 	check_deps "${DEPS[@]}" || exit 1
 	git_check_changes || exit 1
 	load_config || exit 1
