@@ -72,6 +72,7 @@ ui_check_editor(){
 	fi
 	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
 	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
+	exit
 }
 
 ui_select_files(){
