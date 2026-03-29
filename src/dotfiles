@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+git_check_changes(){	# Comprobar se han modificado archivos manualmente
+	(
+		cd "$REPO"
+		git diff --quiet && return	# Salir si no hay cambios 
+		echo "CUIDADO: Hay cambios sin guardar en los archivos del repositorio"
+		local ans
+		select ans in "Ver cambios" "Guardar los cambios" "Salir de dotsync"; do
+			case "$ans" in 
+				"Ver"*)
+						local diff=$(git diff)
+						pager "$diff"
+					;;
+				"Guardar"*)
+					break
+					;;
+				"Salir"*)
+					return 1
+					;;
+			esac
+		done
+		read -r -p "Descripción de los cambios:" ans
+		if [ -z "$ans" ]; then
+			echo "ERROR: No se ha proporcionado una descripción para el commit"
+			return 1
+		fi
+		if ! git add -A; then
+			echo "ERROR: Al añadir los cambios realizados al staging area" >&2
+			return 1
+		fi
+		if ! git commit -m "MANUAL: $ans"; then
+			echo "ERROR: Al hacer commit de los cambios" >&2
+			return 1
+		fi
+	) || return 1 
+}
+
 git_undo(){
 	local hash=$(ui_select_commit "Selecciona el commit a restaurar")
 	[ -z "$hash" ] && return
