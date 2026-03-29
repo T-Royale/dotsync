@@ -5,7 +5,7 @@ load_config() {
 		return 0;	# No pasa nada si el archivo de configuración no existe
 	fi
 	if ! source "$CONF"; then
-		echo "Ha habido un error al leer el archivo de configuración"
+		echo "ERROR: al leer el archivo de configuración" >&2
 		echo "Consulta dotsync-conf(1) para más información"
 		return 1
 	fi

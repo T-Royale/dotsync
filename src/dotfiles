@@ -1,6 +1,42 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+git_check_changes(){	# Comprobar se han modificado archivos manualmente
+	(
+		cd "$REPO"
+		git diff --quiet && return	# Salir si no hay cambios 
+		echo "CUIDADO: Hay cambios sin guardar en los archivos del repositorio"
+		local ans
+		select ans in "Ver cambios" "Guardar los cambios" "Salir de dotsync"; do
+			case "$ans" in 
+				"Ver"*)
+						local diff=$(git diff)
+						pager "$diff"
+					;;
+				"Guardar"*)
+					break
+					;;
+				"Salir"*)
+					return 1
+					;;
+			esac
+		done
+		read -r -p "Descripción de los cambios:" ans
+		if [ -z "$ans" ]; then
+			echo "ERROR: No se ha proporcionado una descripción para el commit"
+			return 1
+		fi
+		if ! git add -A; then
+			echo "ERROR: Al añadir los cambios realizados al staging area" >&2
+			return 1
+		fi
+		if ! git commit -m "MANUAL: $ans"; then
+			echo "ERROR: Al hacer commit de los cambios" >&2
+			return 1
+		fi
+	) || return 1 
+}
+
 git_undo(){
 	local hash=$(ui_select_commit "Selecciona el commit a restaurar")
 	[ -z "$hash" ] && return
@@ -13,8 +49,13 @@ git_undo(){
 		fi
 		pager "$diff"
 		echo "Seguro que quieres restaurar el repositorio al commit $hash?"
-		read -r -p "y/N: " ans
-		[[ "${ans,,}" != "y" ]] && return
+		local ans
+		select ans in "Sí" "No"; do
+			[ -n "$ans" ] break;
+		done
+		if [[ "$ans" == "No" ]]; then
+			return
+		fi
 		local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
 		mapfile -t untracked_files <<< "$untracked_files"
 		if [ -n "$untracked_files" ]; then
@@ -23,18 +64,24 @@ git_undo(){
 			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
 			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
 			echo "Consulta dotsync-repo(1) para más información"
-			read -r -p "Deseas continuar? y/N: " ans
-			[[ "${ans,,}" != "y" ]] && return 
+			echo "¿Deseas continuar?"
+			local ans
+			select ans in "Sí: Continuar con el undo" "No: Salir de dotsync"; do
+				[ -n "$ans" ] break;
+			done
+			if [[ "$ans" == "No"* ]]; then
+				return 		# Salir sin continuar
+			fi
 			remove_path "${untracked_files[@]}"
 		fi
 		stow -D . 2>/dev/null
 		if ! git restore --source="$hash" --staged --worktree -- . > /dev/null; then
-			echo "ERROR: Al restaurar el commit seleccionado"
+			echo "ERROR: Al restaurar el commit seleccionado" >&2
 			return 1
 		fi
         git clean -fd > /dev/null	# Limpiar archivos fantasma y directorios vacíos
         if ! stow . > /dev/null; then
-			echo "ERROR: Al restaurar los enlaces simbólicos"
+			echo "ERROR: Al restaurar los enlaces simbólicos" >&2
 			return 1
 		fi
 		git commit -m "VOLVER: A $hash" -m "Se volvió al estado del commit $hash" > /dev/null
@@ -79,12 +126,12 @@ remove_path(){
 	((RECURSION_DEPTH++))
 	for path in "$@"; do
 		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe"
+			echo "ERROR: $path no existe" >&2
 			continue
 		fi
 		local full_path=$(realpath "$path")
 		if [[ "$full_path" != "$REPO"* ]]; then
-			echo "ERROR: No puedes eliminar elementos fuera del repositorio"
+			echo "ERROR: No puedes eliminar elementos fuera del repositorio" >&2
 			continue
 		fi
 		local real_path="${full_path/$REPO/$HOME}"	# Ruta fuera del repositorio
@@ -99,7 +146,7 @@ remove_path(){
 		if [ -f "$full_path" ]; then
 			echo "Moviendo $full_path a $real_path"
 			if ! mv "$full_path" "$real_path"; then
-				echo "ERROR: No se pudo mover el archivo"
+				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
 			else
 				files+=("$path")
@@ -108,7 +155,7 @@ remove_path(){
 		elif [ -d "$full_path" ]; then
 			remove_path "$full_path"/*		# Llama a esta misma función recursivamente
 		else 
-			echo "ERROR: $path no es un archivo o un directorio"
+			echo "ERROR: $path no es un archivo o un directorio" >&2
 			continue
 		fi
 	done
@@ -140,16 +187,16 @@ add_path(){
 			continue
 		fi
 		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe"
+			echo "ERROR: $path no existe" >&2
 			continue
 		fi
 		local full_path=$(realpath "$path")
 		if ! [[ "$full_path" == "$HOME"* ]]; then
-			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME"
+			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME" >&2
 			continue
 		fi
 		if [[ "$full_path" == "$REPO"* ]]; then
-			echo "ERROR: No puedes añadir el propio repositorio dotsync"
+			echo "ERROR: No puedes añadir el propio repositorio dotsync" >&2
 			continue
 		fi
 		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
@@ -160,12 +207,12 @@ add_path(){
 		fi
 		if [ -f "$full_path" ]; then
 			if ! mkdir -p "${repo_path%/*}"; then
-				echo "ERROR: No se pudo crear directorio ${repo_path%/*}"
+				echo "ERROR: No se pudo crear directorio ${repo_path%/*}" >&2
 				continue;
 			fi
 			echo "Moviendo $full_path a $repo_path"
 			if ! mv "$full_path" "$repo_path"; then
-				echo "ERROR: No se pudo mover el archivo"
+				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
 			else
 				files+=("$path")
@@ -173,7 +220,7 @@ add_path(){
 		elif [ -d "$full_path" ]; then
 			add_path "$full_path"/*		# Llama a esta misma función recursivamente
 		else 
-			echo "ERROR: $path no es un archivo o un directorio"
+			echo "ERROR: $path no es un archivo o un directorio" >&2
 			continue
 		fi
 	done

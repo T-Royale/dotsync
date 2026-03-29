@@ -43,9 +43,15 @@ ui_git_log(){
 ui_check_editor(){
 	[ -n "$EDITOR" ] && return
 	echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar, más información en dotsync-ui(1)"
+	echo "Más información en dotsync-ui(1)"
 	echo "Quieres definirla con el ayudante?"
-	read -r -p "Y/n: " ans
-	[[ "${ans,,}" == "n" ]] && return
+	local ans
+	select ans in "Sí: ayúdame a configurar el editor" "No: Definir por mi cuenta"; do
+		[ -n "$ans" ] break;
+	done
+	if [[ "$ans" == "No"* ]]; then
+		return 		# Salir sin continuar
+	fi
 	local editors=("vi" "vim" "nvim" "nano" "emacs")
 	for editor in "${editors[@]}"; do
 		if command -v "$editor"; then
@@ -67,6 +73,7 @@ ui_check_editor(){
 	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
 	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
 }
+
 ui_select_files(){
 	local -n files_arr="$2"		# El output será la variable pasada como segundo argumento
 	local -a exclude_path
