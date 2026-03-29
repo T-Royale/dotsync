@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly DEPS=("curl" "git" "stow" "fzf" "tree")
-readonly CONF="${XDG_CONFIG_HOME:-$HOME/.config}/dotsync/dotsync.conf"
+readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 readonly TEMP="$REPO/.tmp"
 EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "$TEMP" "$REPO/.git" "$REPO/.git*")
@@ -24,10 +24,10 @@ main(){
 		exit 1
 	fi
 	case "$opt" in
-		"init") 
+		"init"|"i")
 			init_dotsync
 			;;
-		"add")
+		"add"|"a")
 			if [ "$#" -eq 0 ]; then
 				local files=()
 				if ui_select_files "$HOME" files; then
@@ -39,14 +39,14 @@ main(){
 				add_path "$@" || exit 1
 			fi
 			;;
-		"list")
+		"list"|"ls")
 			if command -v eza > /dev/null; then
 		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README|.tmp" "$REPO"
 			else
 				tree -a -C -L 5 -I ".git|.stow-local-ignore|README|.tmp" "$REPO"
 			fi
 			;;
-		"remove") 
+		"remove"|"rm") 
 			if [ "$#" -eq 0 ]; then
 				local files=()
 				if ui_select_files "$REPO" files; then
@@ -58,7 +58,7 @@ main(){
 				remove_path "$@" || exit 1
 			fi
 			;;
-		"edit")
+		"edit"|"e")
 		 	ui_check_editor || exit 1
 			if [ "$#" -eq 0 ]; then
 				local files=()
