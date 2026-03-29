@@ -19,7 +19,7 @@ main(){
 	fi
 	opt="$1"
 	shift
-	if ! [ -d "$REPO" ] && [[ "$OPT" != "init" ]]; then
+	if ! [ -d "$REPO" ] && [[ "$opt" != "init" ]]; then
 		echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
 		exit 1
 	fi
