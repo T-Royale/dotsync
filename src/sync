@@ -229,7 +229,6 @@ sync_export(){
 		fi	
 	done
 	[ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
-	exit
 	local dstdir="$TEMP/export-${timestamp}"
 	mkdir -p "$dstdir"
 	local tarname="export-${timestamp}.tar.gz"
