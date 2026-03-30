@@ -144,7 +144,6 @@ remove_path(){
 			continue
 		fi
 		if [ -f "$full_path" ]; then
-			echo "Moviendo $full_path a $real_path"
 			if ! mv "$full_path" "$real_path"; then
 				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
@@ -260,6 +259,7 @@ init_dotsync(){
 				\.gitignore
 				\.gitmodules
 				^/README*\n' > .stow-local-ignore
+		printf '.tmp' > .gitignore
 		echo "Esta es la carpeta con el contenido del repositorio dotsync" > README
 		echo "Se recomienda usar <dotsync edit> para editar los archivos del repositorio" >> README
 		echo "Dotsync es un software libre desarollado por Teo Morales (github.com/t-royale) bajo licencia GPLv3" >> README
