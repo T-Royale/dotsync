@@ -115,7 +115,7 @@ sync_import(){
 		else
 			echo "Archivo recibido con éxito"
 		fi
-		if ! gpg -d --output "$bundle" "$encrypted"; then
+		if ! gpg -d --output "$bundle" "$encrypted" > /dev/null; then
 			echo "ERROR: Al desencriptar el archivo obtenido" >&2
 			return 1
 		fi
@@ -180,7 +180,7 @@ sync_import(){
 		else
 			echo "Importación completada, se guardarán los cambios"
 			git add -A
-			git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}"
+			git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}" > /dev/null
 			stow .
 		fi
 	) || return 1
@@ -223,13 +223,14 @@ sync_export(){
 		file=$(realpath "$file")
 		if [[ "$file" == "$REPO"* ]]; then
 			files+=("$file")
+		elif is_excluded "$file"; then
+			echo "OMITIDO: $file"
 		else 
 			echo "ERROR: $file no pertenece al repositorio" >&2
 			return 1
 		fi	
 	done
 	[ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
-	exit
 	local dstdir="$TEMP/export-${timestamp}"
 	mkdir -p "$dstdir"
 	local tarname="export-${timestamp}.tar.gz"
@@ -239,7 +240,6 @@ sync_export(){
 	(
 		cd "$REPO" || return 1
 		for i in "${!files[@]}"; do
-			echo "${files[$i]}"
 			files[$i]="${files[$i]#"$REPO"/}"	# obtener ruta relativa al repositorio
 		done
 		if ! tar -czf "${dstdir}/${tarname}" "${files[@]}" > /dev/null; then
@@ -255,7 +255,7 @@ sync_export(){
 			echo "ERROR: Al generar tarball para cifrar" >&2
 			return 1
 		fi	
-		if ! gpg -c --output "$encrypted" "$bundle" ; then
+		if ! gpg -c --output "$encrypted" "$bundle" > /dev/null; then
 			echo "ERROR: Al cifrar contenidos para exportar" >&2
 			return 1
 		fi
