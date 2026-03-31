@@ -119,40 +119,55 @@ remove_path(){
 		echo "No se ha especificado ningún archivo o directorio"
 		return 1
 	fi
-	# Desvincular enlaces simbólicos
-	if [ "$RECURSION_DEPTH" -eq 0 ]; then
-		( cd "$REPO" && stow -D . > /dev/null 2>&1 )
-	fi
-	((RECURSION_DEPTH++))
+
 	for path in "$@"; do
 		if ! [ -e "$path" ]; then 
 			echo "ERROR: $path no existe" >&2
 			continue
 		fi
-		local full_path=$(realpath "$path")
-		if [[ "$full_path" != "$REPO"* ]]; then
+		local full_path
+		if [ -L "$path" ]; then
+			if ! full_path=$(readlink -f "$path"); then
+				echo "ERROR: No se pudo resolver $path" >&2
+				continue
+			fi
+		else
+			if ! full_path=$(realpath "$path" 2>/dev/null); then
+				echo "ERROR: No se pudo resolver $path" >&2
+				continue
+			fi
+		fi
+		if [[ "$full_path" != "$REPO/"* ]]; then
 			echo "ERROR: No puedes eliminar elementos fuera del repositorio" >&2
 			continue
 		fi
-		local real_path="${full_path/$REPO/$HOME}"	# Ruta fuera del repositorio
+		files+=("$full_path")
+	done
+
+	# Desvincular enlaces simbólicos
+	if [ "$RECURSION_DEPTH" -eq 0 ]; then
+		( cd "$REPO" && stow -D . > /dev/null 2>&1 )
+	fi
+	((RECURSION_DEPTH++))
+
+	for path in "${files[@]}"; do
+		local real_path="${path/$REPO/$HOME}"	# Ruta fuera del repositorio
 		if ! mkdir -p "${real_path%/*}"; then
 			echo "No se pudo crear directorio para $real_path"
 		fi
-		local basename="${full_path##*/}"
-		if is_excluded "$full_path"; then
+		local basename="${path##*/}"
+		if is_excluded "$path"; then
 			echo "OMITIDO $path"
 			continue
 		fi
-		if [ -f "$full_path" ]; then
-			if ! mv "$full_path" "$real_path"; then
+		if [ -f "$path" ]; then
+			if ! mv "$path" "$real_path"; then
 				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
-			else
-				files+=("$path")
 			fi
 			find "$REPO" -mindepth 1 -type d -empty -delete		# Eliminar carpetas vacías
-		elif [ -d "$full_path" ]; then
-			remove_path "$full_path"/*		# Llama a esta misma función recursivamente
+		elif [ -d "$path" ]; then
+			remove_path "$path"/*		# Llama a esta misma función recursivamente
 		else 
 			echo "ERROR: $path no es un archivo o un directorio" >&2
 			continue
