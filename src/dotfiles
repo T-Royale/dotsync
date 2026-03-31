@@ -209,7 +209,6 @@ add_path(){
 				echo "ERROR: No se pudo crear directorio ${repo_path%/*}" >&2
 				continue;
 			fi
-			echo "Moviendo $full_path a $repo_path"
 			if ! mv "$full_path" "$repo_path"; then
 				echo "ERROR: No se pudo mover el archivo" >&2
 				continue;
