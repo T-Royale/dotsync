@@ -3,20 +3,19 @@
 sync_remote(){
 	local opt=$1
 	shift
-	local remote=$()
-	(
-		cd "$REPO"
-		remote=$(git remote)
-	)
+	local remote
+	local branch
 	case "$opt" in
 		"push")
 			(
+				cd "$REPO"
+				remote=$(git remote)
+				branch=$(git branch | tr '*' ' ' | awk '{ print $1 }')
 				if [ -z "$remote" ]; then
 					echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto" >&2
 					return 1
 				fi
-				cd "$REPO"
-				if ! git push "$@"; then
+				if ! git push -u "$remote" "$branch" "$@"; then
 					echo "ERROR: Al subir los cambios al repositorio remoto" >&2
 					return 1
 				else
@@ -26,6 +25,8 @@ sync_remote(){
 			;;
 		"pull")
 			(
+				cd "$REPO"
+				remote=$(git remote)
 				if [ -z "$remote" ]; then
 					echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto" >&2
 					return 1
@@ -43,25 +44,32 @@ sync_remote(){
 		"set-remote")
 			(
 				cd "$REPO"
+				remote=$(git remote)
 				if [ -z "$remote" ]; then
 					if ! git remote add origin "$1"; then
 						echo "ERROR: Al crear y establecer enlace remoto para el repositorio" >&2
 						return 1
+					else
+						echo "Dirección de repositorio remoto establecida con éxito"
 					fi
 				else
 					if ! git remote set-url "$remote" "$1"; then
 						echo "ERROR: Al modificar enlace de repositorio remoto" >&2
+						return 1
+					else
+						echo "Dirección de repositorio remoto reestablecida con éxito"
 					fi
 				fi
 			) || return 1
 			;;
 		"get-remote")
 		 	(
+				cd "$REPO"
+				remote=$(git remote)
 				if [ -z "$remote" ]; then
-					echo "ERROR: No existe un repositorio remoto"
+					echo "ERROR: No existe un repositorio remoto" >&2
 					return 1
 				fi
-				cd "$REPO"
 				local link=$(git remote get-url "$remote")
 				echo "El repositorio remoto definido es"
 				echo "$link"
