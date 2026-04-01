@@ -175,7 +175,6 @@ remove_path(){
 	done
 	((RECURSION_DEPTH--))
 	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si llamada original
-		echo "Finalizando sincronización con git y stow"
 		(
 			cd "$REPO"
 			git add -A  > /dev/null
@@ -239,7 +238,6 @@ add_path(){
 	done
 	((RECURSION_DEPTH--))
 	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si es la primera llamada
-		echo "Finalizando sincronización con git y stow"
 		(
 			cd "$REPO"
 			git add -A > /dev/null
