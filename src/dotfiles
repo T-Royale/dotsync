@@ -267,18 +267,19 @@ init_dotsync(){
 			echo "Error al iniciar repositorio git en $REPO"
 			exit 1
 		fi
-		printf '\.git
-				\.gitignore
-				\.gitmodules
-				^/README*\n' > .stow-local-ignore
-		printf '.tmp\nstow-local-ignore\n.gitignore' > .gitignore
+		printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README*\n' > .stow-local-ignore
+		printf '.tmp\n.stow-local-ignore\n.gitignore' > .gitignore
 		local readme_file="README.md"
 		echo "# Este es tu repositorio dotsync" > "$readme_file"
 		echo "## Más información sobre dotsync en [este enlace](https://github.com/T-Royale/dotsync)" >> "$readme_file"
 		echo "### Dotsync es un software libre desarollado por [Teo Morales](https://github.com/T-Royale) bajo licencia GPLv3" >> "$readme_file"
 		echo "> Si no has recibido una copia de esta licencia junto al programa visita [gnu.org](https://gnu.org/licences/gpl.html)" >> "$readme_file"
-		if ! git add -A > /dev/null && git commit -m "Commit inicial" > /dev/null; then
-			echo "Error al usar git en el repositorio"
+		if ! git add -A > /dev/null; then
+			echo "ERROR al usar git en el repositorio" >&2
+			exit 1
+		fi
+		if ! git commit -m "Commit inicial" > /dev/null; then
+			echo "ERROR al usar git en el repositorio" >&2
 			exit 1
 		fi
 		echo "Repositorio dotsync inicializado con éxito"
