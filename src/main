@@ -45,7 +45,7 @@ main(){
 			if command -v eza > /dev/null; then
 		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README|.tmp" "$REPO"
 			else
-				tree -a -C -L 5 -I ".git|.stow-local-ignore|README|.tmp" "$REPO"
+				tree -a -C -L 5 -I ".git*|.stow-local-ignore|README|.tmp" "$REPO"
 			fi
 			;;
 		"remove"|"rm") 
