@@ -4,7 +4,7 @@ readonly DEPS=("curl" "git" "stow" "fzf" "tree")
 readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 readonly TEMP="$REPO/.tmp"
-EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README" "$TEMP" "$REPO/.git" "$REPO/.git*")
+EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README*" "$TEMP" "$REPO/.git" "$REPO/.git*")
 
 shopt -s nullglob
 timestamp=$(date +%s)
@@ -16,13 +16,15 @@ main(){
 	fi
 	opt="$1"
 	shift
-	if ! [ -d "$REPO" ] && [[ "$opt" != "init" ]]; then
-		echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
-		exit 1
+	if [[ "$opt" != "init" ]]; then
+		if ! [ -d "$REPO" ]; then
+			echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
+			exit 1
+		fi
+		check_deps "${DEPS[@]}" || exit 1
+		git_check_changes || exit 1
+		load_config || exit 1
 	fi
-	check_deps "${DEPS[@]}" || exit 1
-	git_check_changes || exit 1
-	load_config || exit 1
 	case "$opt" in
 		"init"|"i")
 			init_dotsync
@@ -41,9 +43,9 @@ main(){
 			;;
 		"list"|"ls")
 			if command -v eza > /dev/null; then
-		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README|.tmp" "$REPO"
+		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
 			else
-				tree -a -C -L 5 -I ".git|.stow-local-ignore|README|.tmp" "$REPO"
+				tree -a -C -L 5 -I ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
 			fi
 			;;
 		"remove"|"rm") 
