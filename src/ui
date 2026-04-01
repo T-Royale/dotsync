@@ -71,6 +71,13 @@ ui_check_editor(){
 		return 1
 	fi
 	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
+	if [ -f "$REPO/.bashrc" ]; then		# Si .bashrc existe en el repositorio, hacer un commit
+		(
+			cd "$REPO"
+			git add .bashrc
+			git commit -m "DOTSYNC: Definir variable EDITOR" > /dev/null
+		)
+	fi
 	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
 	exit
 }
