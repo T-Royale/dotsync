@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly DEPS=("curl" "git" "stow" "fzf" "tree")
+readonly DEPS=("curl" "git" "stow" "fzf" "tree" "diff")
 readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 readonly TEMP="$REPO/.tmp"

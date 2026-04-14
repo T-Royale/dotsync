@@ -172,6 +172,32 @@ sync_import(){
 				fi
 			fi
 
+            # Comprobar si el archivo podría entrar en conflicto con stow cuando se genere el enlace simbólico en $HOME
+            # Esto evita conflictos de stow si $HOME/.config/nvim existe pero no está en el repositorio 
+            local file_after_symlink="${file_repo/${REPO}/${HOME}}" 
+            if [ -f "$file_after_symlink" ]; then
+                echo "$file_after_symlink ya existe en el sistema, pero no pertenece al repositorio"
+                echo "¿Deseas reemplazarlo por el archivo descargado?"
+				select ans in \
+                    "Sí: Reemplazar archivo existente por archivo descargado"\
+                    "Ver differencias entre archivos" \
+                    "No: Dejar archivo existente como está"; do
+                    if [[ "$ans" == *"dif"* ]]; then
+                        pager "$(diff "$file_real" "$file_after_symlink")"
+                        continue    # Continue no sale de select
+                    fi
+                    [[ -n "$ans" ]] && break;
+				done
+                if [[ "$ans" == "S"* ]]; then
+                    if ! rm "$file_after_symlink"; then
+                        echo "Error al eliminar el archivo $file_after_symlink, no se añadirá $file_repo al repositorio"
+                        continue
+                    fi
+                elif [[ "$ans" == "N"* ]]; then
+                    continue
+                fi
+            fi
+
 			if cp --force "$file" "$file_repo"; then
 				imported_files+=("$file")
 			else 
@@ -181,10 +207,13 @@ sync_import(){
 			fi
 		done
 		cd $REPO
+        # Condiciones de salida del programa
 		if [ "$err" -gt 0 ]; then
 			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado" >&2
 			git clean -fd
 			return 1
+        elif [ -z "$imported_files" ]; then
+            echo "No se han importado archivos, no hay cambios que guardar"
 		else
 			echo "Importación completada, se guardarán los cambios"
 			git add -A
