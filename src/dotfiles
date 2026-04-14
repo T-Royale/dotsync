@@ -304,6 +304,10 @@ check_deps(){
 
 get_install_cmd(){
 	(	# Ejecutar en subshell para que no se cargue /etc/os-release globalmente
+        if ! type curl > /dev/null 2>&1; then
+            echo "Para recibir ayuda sobre la instalación de dependencias se necesita tener curl instalado"
+            return 1
+        fi  
 		if [ -f /etc/os-release ]; then
 			source /etc/os-release
 		else 
@@ -334,5 +338,5 @@ get_install_cmd(){
 			printf "Instala \e[1m%b\e[0m con el siguiente comando:\n" "$cmd" 
 			printf "\t\e[36msudo %b\e[0m\n" "$install_cmd"
 		fi
-	)
+	) || return 1
 }
