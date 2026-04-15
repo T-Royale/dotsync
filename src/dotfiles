@@ -156,10 +156,6 @@ remove_path(){
 			echo "No se pudo crear directorio para $real_path"
 		fi
 		local basename="${path##*/}"
-		if is_excluded "$path"; then
-			echo "OMITIDO $path"
-			continue
-		fi
 		if [ -f "$path" ]; then
 			if ! mv "$path" "$real_path"; then
 				echo "ERROR: No se pudo mover el archivo" >&2
