@@ -94,6 +94,7 @@ main() {
         print_version
         ;;
     *)
+        echo "ERROR: Commandp $opt no encontrado" >&2
         help
         ;;
     esac
