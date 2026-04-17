@@ -180,6 +180,7 @@ remove_path() {
             stow . >/dev/null # Volver a vincular lo que queda
         )
     fi
+    echo "Se han eliminado los elementos del repositorio"
     return 0
 }
 
@@ -245,6 +246,7 @@ add_path() {
             stow . >/dev/null
         )
     fi
+    echo "Se han añadido correctamente los elementos al repositorio"
     return 0
 }
 
