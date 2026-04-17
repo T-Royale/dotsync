@@ -10,6 +10,9 @@ load_config() {
         return 1
     fi
     EXCLUDE+=("${conf_exclude[@]}")
+    if [ -z "$auto_sync" ]; then
+        auto_sync=true
+    fi
 }
 
 is_excluded() {

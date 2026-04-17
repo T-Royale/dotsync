@@ -1,4 +1,4 @@
-% DOTSYNC-CONF(1) Version 1.0.0 | Manual del Usuario
+% DOTSYNC-CONF(1) Version 1.0.2 | Manual del Usuario
 % Teo Morales
 % Marzo 2026
 
@@ -13,6 +13,13 @@ En la versión actual de **dotsync**, no se verifica que el archivo de configura
 Usa comodines, globbing y variables de entorno en los elementos de este archivo.
 
 # ELEMENTOS CONFIGURABLES
+
+## SINCRONIZAR REPOSITORIO REMOTO AUTOMÁTICAMENTE
+En el archivo de configuración se puede definir la variable booleana **auto_sync**, si es verdadera, cada vez que se llame a **dotsync**, se sincronizará con el repositorio remoto.
+Si no se define, el valor predeterminado de **auto_sync** es verdadero.
+Tener esta opción activada puede añadir un retardo cada vez que se llama a **dotsync**.
+
+auto_sync=true
 
 ## EXCLUSIÓN DE PATRONES AL AÑADIR DIRECTORIOS
 Antes de añadir directorios enteros con *dotsync add*, se puede configurar una lista de patrones a ignorar automáticamente.
@@ -30,6 +37,8 @@ declare -a conf_exclude=(
 	"*/nvim/*/plugins/*"
 
 )
+
+auto_sync=false
 
 
 # COPYRIGHT
