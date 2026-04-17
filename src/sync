@@ -16,9 +16,10 @@ sync_update() {
         local remote_hash=$(git rev-parse @{u})
         local base_hash=$(git merge-base @ @{u}) # Último hash común
 
-        if [ "$local_hash" = "$remote_hash" ]; then
+        if [ "$local_hash" == "$remote_hash" ]; then
+            echo "El repositorio remoto está actualizado"
             return 0
-        elif [ "$local_hash" = "$base_hash" ]; then
+        elif [ "$local_hash" == "$base_hash" ]; then
             if git pull >/dev/null 2>&1; then
                 echo "Se han descargado cambios del repositorio remoto"
                 return 0
@@ -26,7 +27,7 @@ sync_update() {
                 echo "ERROR: Al descargar cambios del repositorio remoto" >&2
                 return 1
             fi
-        elif [ "$remote_hash" = "$base_hash" ]; then
+        elif [ "$remote_hash" == "$base_hash" ]; then
             if git push >/dev/null 2>&1; then
                 echo "Se han subido cambios al repositorio remoto"
                 return 0
