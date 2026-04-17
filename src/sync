@@ -50,7 +50,7 @@ sync_update() {
 sync_remote() {
     local opt=$1
     if [[ -z "$opt" ]]; then
-        sync_update
+        sync_update || help
         return
     fi
     shift
