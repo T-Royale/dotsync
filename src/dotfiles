@@ -1,296 +1,294 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
-git_check_changes(){	# Comprobar se han modificado archivos manualmente
-	(
-		cd "$REPO"
-		git diff --quiet && return	# Salir si no hay cambios 
-		echo "CUIDADO: Hay cambios sin guardar en los archivos del repositorio"
-		local ans
-		select ans in "Ver cambios" "Guardar los cambios" "Salir de dotsync"; do
-			case "$ans" in 
-				"Ver"*)
-						local diff=$(git diff)
-						pager "$diff"
-					;;
-				"Guardar"*)
-					break
-					;;
-				"Salir"*)
-					return 1
-					;;
-			esac
-		done
-		read -r -p "Descripción de los cambios:" ans
-		if [ -z "$ans" ]; then
-			echo "ERROR: No se ha proporcionado una descripción para el commit"
-			return 1
-		fi
-		if ! git add -A; then
-			echo "ERROR: Al añadir los cambios realizados al staging area" >&2
-			return 1
-		fi
-		if ! git commit -m "MANUAL: $ans"; then
-			echo "ERROR: Al hacer commit de los cambios" >&2
-			return 1
-		fi
-	) || return 1 
+repo_check_changes() { # Comprobar se han modificado archivos manualmente
+    (
+        cd "$REPO"
+        git diff --quiet && return # Salir si no hay cambios
+        echo "CUIDADO: Hay cambios sin guardar en los archivos del repositorio"
+        local ans
+        select ans in "Ver cambios" "Guardar los cambios" "Salir de dotsync"; do
+            case "$ans" in
+            "Ver"*)
+                local diff=$(git diff)
+                pager "$diff"
+                ;;
+            "Guardar"*)
+                break
+                ;;
+            "Salir"*)
+                return 1
+                ;;
+            esac
+        done
+        read -r -p "Descripción de los cambios:" ans
+        if [ -z "$ans" ]; then
+            echo "ERROR: No se ha proporcionado una descripción para el commit"
+            return 1
+        fi
+        if ! git add -A; then
+            echo "ERROR: Al añadir los cambios realizados al staging area" >&2
+            return 1
+        fi
+        if ! git commit -m "MANUAL: $ans"; then
+            echo "ERROR: Al hacer commit de los cambios" >&2
+            return 1
+        fi
+    ) || return 1
 }
 
-git_undo(){
-	local hash=$(ui_select_commit "Selecciona el commit a restaurar")
-	[ -z "$hash" ] && return
-	(
-		cd "$REPO"
-		local diff=$(git diff HEAD "$hash")
-		if [ -z "$diff" ]; then
-			echo "No se han realizado cambios en el repositorio desde este commit"
-			return
-		fi
-		pager "$diff"
-		echo "Seguro que quieres restaurar el repositorio al commit $hash?"
-		local ans
-		select ans in "Sí" "No"; do
-			[ -n "$ans" ] && break;
-		done
-		if [[ "$ans" == "No" ]]; then
-			return
-		fi
-		local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
-		mapfile -t untracked_files <<< "$untracked_files"
-		if [ -n "$untracked_files" ]; then
-			echo "ADVERTENCIA: es archivos no existían en el punto del repositorio que se desea restaurar:"
-			local untracked_file
-			for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
-			echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
-			echo "Consulta dotsync-repo(1) para más información"
-			echo "¿Deseas continuar?"
-			local ans
-			select ans in "Sí: Continuar con el undo" "No: Salir de dotsync"; do
-				[ -n "$ans" ] && break;
-			done
-			if [[ "$ans" == "No"* ]]; then
-				return 		# Salir sin continuar
-			fi
-			remove_path "${untracked_files[@]}"
-		fi
-		stow -D . 2>/dev/null
-		if ! git restore --source="$hash" --staged --worktree -- . > /dev/null; then
-			echo "ERROR: Al restaurar el commit seleccionado" >&2
-			return 1
-		fi
-        git clean -fd > /dev/null	# Limpiar archivos fantasma y directorios vacíos
-        if ! stow . > /dev/null; then
-			echo "ERROR: Al restaurar los enlaces simbólicos" >&2
-			return 1
-		fi
-		git commit -m "VOLVER: A $hash" -m "Se volvió al estado del commit $hash" > /dev/null
-		echo "Commit restaurado con éxito"
-	)
+git_undo() {
+    local hash=$(ui_select_commit "Selecciona el commit a restaurar")
+    [ -z "$hash" ] && return
+    (
+        cd "$REPO"
+        local diff=$(git diff HEAD "$hash")
+        if [ -z "$diff" ]; then
+            echo "No se han realizado cambios en el repositorio desde este commit"
+            return
+        fi
+        pager "$diff"
+        echo "Seguro que quieres restaurar el repositorio al commit $hash?"
+        local ans
+        select ans in "Sí" "No"; do
+            [ -n "$ans" ] && break
+        done
+        if [[ "$ans" == "No" ]]; then
+            return
+        fi
+        local untracked_files=$(git diff --name-only --diff-filter=A "$hash" HEAD)
+        mapfile -t untracked_files <<<"$untracked_files"
+        if [ -n "$untracked_files" ]; then
+            echo "ADVERTENCIA: es archivos no existían en el punto del repositorio que se desea restaurar:"
+            local untracked_file
+            for untracked_file in "${untracked_files[@]}"; do echo -e "\t$untracked_file"; done
+            echo "Serán movidos a sus ubicaciones originales fuera del repositorio"
+            echo "Consulta dotsync-repo(1) para más información"
+            echo "¿Deseas continuar?"
+            local ans
+            select ans in "Sí: Continuar con el undo" "No: Salir de dotsync"; do
+                [ -n "$ans" ] && break
+            done
+            if [[ "$ans" == "No"* ]]; then
+                return # Salir sin continuar
+            fi
+            remove_path "${untracked_files[@]}"
+        fi
+        stow -D . 2>/dev/null
+        if ! git restore --source="$hash" --staged --worktree -- . >/dev/null; then
+            echo "ERROR: Al restaurar el commit seleccionado" >&2
+            return 1
+        fi
+        git clean -fd >/dev/null # Limpiar archivos fantasma y directorios vacíos
+        if ! stow . >/dev/null; then
+            echo "ERROR: Al restaurar los enlaces simbólicos" >&2
+            return 1
+        fi
+        git commit -m "VOLVER: A $hash" -m "Se volvió al estado del commit $hash" >/dev/null
+        echo "Commit restaurado con éxito"
+    )
 }
 
-edit_file(){ 		# Soporte para editar múltiples archivos depende del editor
-	local files=($@)
-	local file
-	for file in "${files[@]}"; do
-		# Si se pasa un enlace simbólico
-		if [ -L "$file" ]; then
-			file=$(readlink -f "$file")
-		fi
-		if [[ $(realpath $file) != "$REPO"* ]]; then
-			echo "No uses dotsync para editar archivos fuera del repositorio"
-			return 1
-		fi
-	done
-	"$EDITOR" "${files[@]}"
-	(
-		cd "$REPO"
-		git add -A > /dev/null
-		git commit -m "EDITAR: ${files[*]}" -m "Archivos editados: ${files[*]}" > /dev/null
-	)
-	return 0
+edit_file() { # Soporte para editar múltiples archivos depende del editor
+    local files=($@)
+    local file
+    for file in "${files[@]}"; do
+        # Si se pasa un enlace simbólico
+        if [ -L "$file" ]; then
+            file=$(readlink -f "$file")
+        fi
+        if [[ $(realpath $file) != "$REPO"* ]]; then
+            echo "No uses dotsync para editar archivos fuera del repositorio"
+            return 1
+        fi
+    done
+    "$EDITOR" "${files[@]}"
+    (
+        cd "$REPO"
+        git add -A >/dev/null
+        git commit -m "EDITAR: ${files[*]}" -m "Archivos editados: ${files[*]}" >/dev/null
+    )
+    return 0
 }
 
 RECURSION_DEPTH=0
 
-remove_path(){
-	local files=()
-	if [ "$#" -lt 1 ]; then
-		echo "No se ha especificado ningún archivo o directorio"
-		return 1
-	fi
+remove_path() {
+    local files=()
+    if [ "$#" -lt 1 ]; then
+        echo "No se ha especificado ningún archivo o directorio"
+        return 1
+    fi
 
-	for path in "$@"; do
-		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe" >&2
-			continue
-		fi
-		local full_path
-		if [ -L "$path" ]; then
-			if ! full_path=$(readlink -f "$path"); then
-				echo "ERROR: No se pudo resolver $path" >&2
-				continue
-			fi
-		else
-			if ! full_path=$(realpath "$path" 2>/dev/null); then
-				echo "ERROR: No se pudo resolver $path" >&2
-				continue
-			fi
-		fi
-		if [[ "$full_path" != "$REPO/"* ]]; then
-			echo "ERROR: No puedes eliminar elementos fuera del repositorio" >&2
-			continue
-		fi
-		files+=("$full_path")
-	done
+    for path in "$@"; do
+        if ! [ -e "$path" ]; then
+            echo "ERROR: $path no existe" >&2
+            continue
+        fi
+        local full_path
+        if [ -L "$path" ]; then
+            if ! full_path=$(readlink -f "$path"); then
+                echo "ERROR: No se pudo resolver $path" >&2
+                continue
+            fi
+        else
+            if ! full_path=$(realpath "$path" 2>/dev/null); then
+                echo "ERROR: No se pudo resolver $path" >&2
+                continue
+            fi
+        fi
+        if [[ "$full_path" != "$REPO/"* ]]; then
+            echo "ERROR: No puedes eliminar elementos fuera del repositorio" >&2
+            continue
+        fi
+        files+=("$full_path")
+    done
 
-	# Desvincular enlaces simbólicos
-	if [ "$RECURSION_DEPTH" -eq 0 ]; then
-		( cd "$REPO" && stow -D . > /dev/null 2>&1 )
-	fi
-	((RECURSION_DEPTH++))
+    # Desvincular enlaces simbólicos
+    if [ "$RECURSION_DEPTH" -eq 0 ]; then
+        (cd "$REPO" && stow -D . >/dev/null 2>&1)
+    fi
+    ((RECURSION_DEPTH++))
 
-	for path in "${files[@]}"; do
-		local real_path="${path/$REPO/$HOME}"	# Ruta fuera del repositorio
-		if ! mkdir -p "${real_path%/*}"; then
-			echo "No se pudo crear directorio para $real_path"
-		fi
-		local basename="${path##*/}"
-		if is_excluded "$path"; then
-			echo "OMITIDO $path"
-			continue
-		fi
-		if [ -f "$path" ]; then
-			if ! mv "$path" "$real_path"; then
-				echo "ERROR: No se pudo mover el archivo" >&2
-				continue;
-			fi
-			find "$REPO" -mindepth 1 -type d -empty -delete		# Eliminar carpetas vacías
-		elif [ -d "$path" ]; then
-			remove_path "$path"/*		# Llama a esta misma función recursivamente
-		else 
-			echo "ERROR: $path no es un archivo o un directorio" >&2
-			continue
-		fi
-	done
-	((RECURSION_DEPTH--))
-	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si llamada original
-		(
-			cd "$REPO"
-			git add -A  > /dev/null
-			if ! git diff-index --quiet HEAD --; then	# Evitar comitar sin cambios
-				git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[@]}" > /dev/null
-			fi
-			stow . > /dev/null		# Volver a vincular lo que queda
-		)
-	fi
-	return 0
+    for path in "${files[@]}"; do
+        local real_path="${path/$REPO/$HOME}" # Ruta fuera del repositorio
+        if ! mkdir -p "${real_path%/*}"; then
+            echo "No se pudo crear directorio para $real_path"
+        fi
+        local basename="${path##*/}"
+        if [ -f "$path" ]; then
+            if ! mv "$path" "$real_path"; then
+                echo "ERROR: No se pudo mover el archivo" >&2
+                continue
+            fi
+            find "$REPO" -mindepth 1 -type d -empty -delete # Eliminar carpetas vacías
+        elif [ -d "$path" ]; then
+            remove_path "$path"/* # Llama a esta misma función recursivamente
+        else
+            echo "ERROR: $path no es un archivo o un directorio" >&2
+            continue
+        fi
+    done
+    ((RECURSION_DEPTH--))
+    if [ "$RECURSION_DEPTH" -eq 0 ]; then # Si llamada original
+        (
+            cd "$REPO"
+            git add -A >/dev/null
+            if ! git diff-index --quiet HEAD --; then # Evitar comitar sin cambios
+                git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[@]}" >/dev/null
+            fi
+            stow . >/dev/null # Volver a vincular lo que queda
+        )
+    fi
+    echo "Se han eliminado los elementos del repositorio"
+    return 0
 }
 
-add_path(){
-	local files=()
-	if [ "$#" -lt 1 ]; then
-		echo "No se ha especificado ningún archivo o directorio"
-		return 1
-	fi
-	((RECURSION_DEPTH++))
-	for path in "$@"; do
-		if [ -L "$path" ]; then
-			echo "OMITIDO: $path es un enlace simbólico (posiblemente ya en dotsync)"
-			continue
-		fi
-		if ! [ -e "$path" ]; then 
-			echo "ERROR: $path no existe" >&2
-			continue
-		fi
-		local full_path=$(realpath "$path")
-		if ! [[ "$full_path" == "$HOME"* ]]; then
-			echo "ERROR: No se pudo añadir $full_path porque no está en $HOME" >&2
-			continue
-		fi
-		if [[ "$full_path" == "$REPO"* ]]; then
-			echo "ERROR: No puedes añadir el propio repositorio dotsync" >&2
-			continue
-		fi
-		local repo_path="${full_path/$HOME/$REPO}"	# Ruta en el repositorio dotsync
-		local basename="${full_path##*/}"
-		if is_excluded "$full_path"; then
-			echo "OMITIDO $path"
-			continue
-		fi
-		if [ -f "$full_path" ]; then
-			if ! mkdir -p "${repo_path%/*}"; then
-				echo "ERROR: No se pudo crear directorio ${repo_path%/*}" >&2
-				continue;
-			fi
-			if ! mv "$full_path" "$repo_path"; then
-				echo "ERROR: No se pudo mover el archivo" >&2
-				continue;
-			else
-				files+=("$path")
-			fi
-		elif [ -d "$full_path" ]; then
-			add_path "$full_path"/*		# Llama a esta misma función recursivamente
-		else 
-			echo "ERROR: $path no es un archivo o un directorio" >&2
-			continue
-		fi
-	done
-	((RECURSION_DEPTH--))
-	if [ "$RECURSION_DEPTH" -eq 0 ]; then	# Si es la primera llamada
-		(
-			cd "$REPO"
-			git add -A > /dev/null
-			if [ "$#" -eq 1 ]; then
-				git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" > /dev/null
-			else
-				git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[@]}" > /dev/null
-			fi
-			stow . > /dev/null
-		)
-	fi
-	return 0
+add_path() {
+    local files=()
+    if [ "$#" -lt 1 ]; then
+        echo "No se ha especificado ningún archivo o directorio"
+        return 1
+    fi
+    ((RECURSION_DEPTH++))
+    for path in "$@"; do
+        if [ -L "$path" ]; then
+            echo "OMITIDO: $path es un enlace simbólico (posiblemente ya en dotsync)"
+            continue
+        fi
+        if ! [ -e "$path" ]; then
+            echo "ERROR: $path no existe" >&2
+            continue
+        fi
+        local full_path=$(realpath "$path")
+        if ! [[ "$full_path" == "$HOME"* ]]; then
+            echo "ERROR: No se pudo añadir $full_path porque no está en $HOME" >&2
+            continue
+        fi
+        if [[ "$full_path" == "$REPO"* ]]; then
+            echo "ERROR: No puedes añadir el propio repositorio dotsync" >&2
+            continue
+        fi
+        local repo_path="${full_path/$HOME/$REPO}" # Ruta en el repositorio dotsync
+        local basename="${full_path##*/}"
+        if is_excluded "$full_path"; then
+            echo "OMITIDO $path"
+            continue
+        fi
+        if [ -f "$full_path" ]; then
+            if ! mkdir -p "${repo_path%/*}"; then
+                echo "ERROR: No se pudo crear directorio ${repo_path%/*}" >&2
+                continue
+            fi
+            if ! mv "$full_path" "$repo_path"; then
+                echo "ERROR: No se pudo mover el archivo" >&2
+                continue
+            else
+                files+=("$path")
+            fi
+        elif [ -d "$full_path" ]; then
+            add_path "$full_path"/* # Llama a esta misma función recursivamente
+        else
+            echo "ERROR: $path no es un archivo o un directorio" >&2
+            continue
+        fi
+    done
+    ((RECURSION_DEPTH--))
+    if [ "$RECURSION_DEPTH" -eq 0 ]; then # Si es la primera llamada
+        (
+            cd "$REPO"
+            git add -A >/dev/null
+            if [ "$#" -eq 1 ]; then
+                git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" >/dev/null
+            else
+                git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[@]}" >/dev/null
+            fi
+            stow . >/dev/null
+        )
+    fi
+    echo "Se han añadido correctamente los elementos al repositorio"
+    return 0
 }
 
-init_dotsync(){
-	if ! mkdir -p "$REPO"; then
-		echo "Error al crear repositorio en $REPO"
-		exit 1
-	fi
-	if ! mkdir -p "$TEMP"; then
-		echo "Error al crear carpeta de archivos temporales en $REPO"
-		exit 1
-	fi
-	(
-		cd "$REPO"
-		if ! git init . --quiet; then
-			echo "Error al iniciar repositorio git en $REPO"
-			exit 1
-		fi
-		printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README*\n' > .stow-local-ignore
-		printf '.tmp\n.stow-local-ignore\n.gitignore' > .gitignore
-		local readme_file="README.md"
-		echo "# Este es tu repositorio dotsync" > "$readme_file"
-		echo "## Más información sobre dotsync en [este enlace](https://github.com/T-Royale/dotsync)" >> "$readme_file"
-		echo "### Dotsync es un software libre desarollado por [Teo Morales](https://github.com/T-Royale) bajo licencia GPLv3" >> "$readme_file"
-		echo "> Si no has recibido una copia de esta licencia junto al programa visita [gnu.org](https://gnu.org/licences/gpl.html)" >> "$readme_file"
-		if ! git add -A > /dev/null; then
-			echo "ERROR al usar git en el repositorio" >&2
-			exit 1
-		fi
-		if ! git commit -m "Commit inicial" > /dev/null; then
-			echo "ERROR al usar git en el repositorio" >&2
-			exit 1
-		fi
-		echo "Repositorio dotsync inicializado con éxito"
-	)
+init_dotsync() {
+    if ! mkdir -p "$REPO"; then
+        echo "Error al crear repositorio en $REPO"
+        exit 1
+    fi
+    if ! mkdir -p "$TEMP"; then
+        echo "Error al crear carpeta de archivos temporales en $REPO"
+        exit 1
+    fi
+    (
+        cd "$REPO"
+        if ! git init . --quiet; then
+            echo "Error al iniciar repositorio git en $REPO"
+            exit 1
+        fi
+        printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README*\n' >.stow-local-ignore
+        printf '.tmp\n.stow-local-ignore\n.gitignore' >.gitignore
+        local readme_file="README.md"
+        echo "# Este es tu repositorio dotsync" >"$readme_file"
+        echo "## Más información sobre dotsync en [este enlace](https://github.com/T-Royale/dotsync)" >>"$readme_file"
+        echo "### Dotsync es un software libre desarollado por [Teo Morales](https://github.com/T-Royale) bajo licencia GPLv3" >>"$readme_file"
+        echo "> Si no has recibido una copia de esta licencia junto al programa visita [gnu.org](https://gnu.org/licences/gpl.html)" >>"$readme_file"
+        if ! git add -A >/dev/null; then
+            echo "ERROR al usar git en el repositorio" >&2
+            exit 1
+        fi
+        if ! git commit -m "Commit inicial" >/dev/null; then
+            echo "ERROR al usar git en el repositorio" >&2
+            exit 1
+        fi
+        echo "Repositorio dotsync inicializado con éxito"
+    )
 }
 
-check_deps(){
+check_deps() {
     local deps=("$@")
     local all_deps_installed=true
     for program in "${deps[@]}"; do
-        if ! type "$program" > /dev/null 2>&1; then
+        if ! type "$program" >/dev/null 2>&1; then
             echo -e "\e[31m$program no está instalado\e[0m"
             get_install_cmd "$program"
             all_deps_installed=false
@@ -299,40 +297,44 @@ check_deps(){
     if ! "$all_deps_installed"; then
         return 1
     fi
-	return 0
+    return 0
 }
 
-get_install_cmd(){
-	(	# Ejecutar en subshell para que no se cargue /etc/os-release globalmente
-		if [ -f /etc/os-release ]; then
-			source /etc/os-release
-		else 
-			echo -e "\e[31mNo se pudo detectar distribución de Linux\e[0m" >&2
-			exit
-		fi
-		local cmd="$1"
-		local DISTRO="$ID"		# ID de distro, se obtiene al cargar /etc/os-release
-		local package_manager=""
-		case "$DISTRO" in
-			debian|ubuntu|linuxmint|elementary|kali|pop|zorin|raspbian|devuan)	package_manager="apt" ;;
-			fedora|rhel|centos|rocky|almalinux|ol|scientific) package_manager="dnf" ;;
-			arch|manjaro|endeavouros|garuda|artix) package_manager="pacman -S" ;;
-			alpine) package_manager="apk add" ;;
-			*) 
-				echo "No se puede sugerir un método de instalación de dependencias para tu distribución de Linux"
-				echo "Para poder continuar, asegúrate de tener las herramientas necesarias instaladas" 
-				exit
-				;;
-		esac
-		# Obtener comando de instalación de command-not-found.com
-		local install_cmd=$(curl "https://command-not-found.com/$cmd" 2>/dev/null | grep "$package_manager" \
-		| sed -e 's/<\/\?code>//g' -e 's/^[[:space:]]*//' | head -n1) # Omitir tags HTML, espacios al principio y líneas innecesarias
-		
-		if [ -z "$install_cmd" ]; then
-			echo -e "\e[31mNo se ha podido entontrar el comando de instalación de $cmd, consulta la documentación de tu distribución ($DISTRO) para instalarlo\e[0m"
-		else 
-			printf "Instala \e[1m%b\e[0m con el siguiente comando:\n" "$cmd" 
-			printf "\t\e[36msudo %b\e[0m\n" "$install_cmd"
-		fi
-	)
+get_install_cmd() {
+    ( # Ejecutar en subshell para que no se cargue /etc/os-release globalmente
+        if ! type curl >/dev/null 2>&1; then
+            echo "Para recibir ayuda sobre la instalación de dependencias se necesita tener curl instalado"
+            return 1
+        fi
+        if [ -f /etc/os-release ]; then
+            source /etc/os-release
+        else
+            echo -e "\e[31mNo se pudo detectar distribución de Linux\e[0m" >&2
+            exit
+        fi
+        local cmd="$1"
+        local DISTRO="$ID" # ID de distro, se obtiene al cargar /etc/os-release
+        local package_manager=""
+        case "$DISTRO" in
+        debian | ubuntu | linuxmint | elementary | kali | pop | zorin | raspbian | devuan) package_manager="apt" ;;
+        fedora | rhel | centos | rocky | almalinux | ol | scientific) package_manager="dnf" ;;
+        arch | manjaro | endeavouros | garuda | artix) package_manager="pacman -S" ;;
+        alpine) package_manager="apk add" ;;
+        *)
+            echo "No se puede sugerir un método de instalación de dependencias para tu distribución de Linux"
+            echo "Para poder continuar, asegúrate de tener las herramientas necesarias instaladas"
+            exit
+            ;;
+        esac
+        # Obtener comando de instalación de command-not-found.com
+        local install_cmd=$(curl "https://command-not-found.com/$cmd" 2>/dev/null | grep "$package_manager" |
+            sed -e 's/<\/\?code>//g' -e 's/^[[:space:]]*//' | head -n1) # Omitir tags HTML, espacios al principio y líneas innecesarias
+
+        if [ -z "$install_cmd" ]; then
+            echo -e "\e[31mNo se ha podido entontrar el comando de instalación de $cmd, consulta la documentación de tu distribución ($DISTRO) para instalarlo\e[0m"
+        else
+            printf "Instala \e[1m%b\e[0m con el siguiente comando:\n" "$cmd"
+            printf "\t\e[36msudo %b\e[0m\n" "$install_cmd"
+        fi
+    ) || return 1
 }

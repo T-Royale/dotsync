@@ -1,100 +1,100 @@
 #!/usr/bin/env bash
 
 # Funciones relacionadas con la interfaz de usuario
-pager(){
-	local content=$1
-	if command -v batcat > /dev/null; then
-		batcat -l Diff <<< "$content"
-	elif command -v bat > /dev/null ; then
-		bat -l Diff <<< "$content"
-	else 
-		less -R <<< "$content"
-	fi
+pager() {
+    local content=$1
+    if command -v batcat >/dev/null; then
+        batcat -l Diff <<<"$content"
+    elif command -v bat >/dev/null; then
+        bat -l Diff <<<"$content"
+    else
+        less -R <<<"$content"
+    fi
 }
 
-ui_select_commit(){
-	(
-		cd "$REPO"
-		local commit=$(git log --oneline | fzf \
-			--header "$@ (ctrl+C para salir)" \
-			--preview 'git show --color=always {1}')
-		local hash=$(awk '{print $1}' <<< "$commit")
-		echo "$hash"
-	)
+ui_select_commit() {
+    (
+        cd "$REPO"
+        local commit=$(git log --oneline | fzf \
+            --header "$@ (ctrl+C para salir)" \
+            --preview 'git show --color=always {1}')
+        local hash=$(awk '{print $1}' <<<"$commit")
+        echo "$hash"
+    )
 }
 
-ui_git_log(){
-	(
-		local selected=$(ui_select_commit "Selecciona un commit para ver los detallles")
-		if [ -z "$selected" ]; then
-			echo "No se ha seleccionado ningún commit"
-			return 0
-		fi
-		cd "$REPO"
-		local diff=$(git diff "$selected" HEAD)
-		if [ -z "$diff" ]; then
-			echo "No han habido cambios desde este commit"
-			return 0
-		fi
-		pager "$diff"
-	)
+ui_git_log() {
+    (
+        local selected=$(ui_select_commit "Selecciona un commit para ver los detallles")
+        if [ -z "$selected" ]; then
+            echo "No se ha seleccionado ningún commit"
+            return 0
+        fi
+        cd "$REPO"
+        local diff=$(git diff "$selected" HEAD)
+        if [ -z "$diff" ]; then
+            echo "No han habido cambios desde este commit"
+            return 0
+        fi
+        pager "$diff"
+    )
 }
 
-ui_check_editor(){
-	[ -n "$EDITOR" ] && return
-	echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar, más información en dotsync-ui(1)"
-	echo "Más información en dotsync-ui(1)"
-	echo "Quieres definirla con el ayudante?"
-	local ans
-	select ans in "Sí: ayúdame a configurar el editor" "No: Definir por mi cuenta"; do
-		[ -n "$ans" ] && break;
-	done
-	if [[ "$ans" == "No"* ]]; then
-		return 		# Salir sin continuar
-	fi
-	local editors=("vi" "vim" "nvim" "nano" "emacs")
-	for editor in "${editors[@]}"; do
-		if command -v "$editor"; then
-			local installed_editors="${installed_editors}\n${editor}"
-		fi
-	done
-	if [ -z "$installed_editors" ]; then
-		echo "No tienes editores de archivos instalados"
-		echo "Se recomienda usar nvim para editar archivos"
-		echo "Instala nvim con el siguiente comando"
-		get_install_cmd "nvim" 
-		return 1
-	fi	
-	local selected_editor=$(echo -e "$installed_editors" | fzf --header "Selecciona el editor de archivos que prefieras")
-	if [ -z "$selected_editor" ]; then
-		echo "No se ha seleccionado ningún editor de texto"
-		return 1
-	fi
-	echo "export EDITOR=$selected_editor" >> "$HOME/.bashrc"
-	if [ -f "$REPO/.bashrc" ]; then		# Si .bashrc existe en el repositorio, hacer un commit
-		(
-			cd "$REPO"
-			git add .bashrc
-			git commit -m "DOTSYNC: Definir variable EDITOR" > /dev/null
-		)
-	fi
-	echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
-	exit
+ui_check_editor() {
+    [ -n "$EDITOR" ] && return
+    echo "La variable de sistema \$EDITOR está vacía, dotsync usa esa variable para saber qué editor de archivos usar, más información en dotsync-ui(1)"
+    echo "Más información en dotsync-ui(1)"
+    echo "Quieres definirla con el ayudante?"
+    local ans
+    select ans in "Sí: ayúdame a configurar el editor" "No: Definir por mi cuenta"; do
+        [ -n "$ans" ] && break
+    done
+    if [[ "$ans" == "No"* ]]; then
+        return # Salir sin continuar
+    fi
+    local editors=("vi" "vim" "nvim" "nano" "emacs")
+    for editor in "${editors[@]}"; do
+        if command -v "$editor"; then
+            local installed_editors="${installed_editors}\n${editor}"
+        fi
+    done
+    if [ -z "$installed_editors" ]; then
+        echo "No tienes editores de archivos instalados"
+        echo "Se recomienda usar nvim para editar archivos"
+        echo "Instala nvim con el siguiente comando"
+        get_install_cmd "nvim"
+        return 1
+    fi
+    local selected_editor=$(echo -e "$installed_editors" | fzf --header "Selecciona el editor de archivos que prefieras")
+    if [ -z "$selected_editor" ]; then
+        echo "No se ha seleccionado ningún editor de texto"
+        return 1
+    fi
+    echo "export EDITOR=$selected_editor" >>"$HOME/.bashrc"
+    if [ -f "$REPO/.bashrc" ]; then # Si .bashrc existe en el repositorio, hacer un commit
+        (
+            cd "$REPO"
+            git add .bashrc
+            git commit -m "DOTSYNC: Definir variable EDITOR" >/dev/null
+        )
+    fi
+    echo "Se ha añadido la variable al sistema, reinicia la terminal o ejecuta \`source ~/.bashrc\` para continuar"
+    exit
 }
 
-ui_select_files(){
-	local -n files_arr="$2"		# El output será la variable pasada como segundo argumento
-	local -a exclude_path
-	local msg=${3:-"Selecciona los archivos deseados"}
-	for pattern in "${EXCLUDE[@]}"; do
-		exclude_path+=("-not" "-path" "$pattern")
-	done
-	local found_files=$(find "$1" -mindepth 1 -maxdepth 4 "${exclude_path[@]}" -not -type l)
-	if [ -z "$found_files" ]; then
-		echo "No hay archivos para buscar"
-		return 0
-	fi
-	local selection=$(echo -e "$found_files" | fzf -m --header="$msg (TAB para multi-selección)")
-	[ -z "$selection" ] && return 1
-	mapfile -t files_arr <<< "$selection"	# Convertir output de fzf a array
+ui_select_files() {
+    local -n files_arr="$2" # El output será la variable pasada como segundo argumento
+    local -a exclude_path
+    local msg=${3:-"Selecciona los archivos deseados"}
+    for pattern in "${EXCLUDE[@]}"; do
+        exclude_path+=("-not" "-path" "$pattern")
+    done
+    local found_files=$(find "$1" -mindepth 1 -maxdepth 4 "${exclude_path[@]}" -not -type l)
+    if [ -z "$found_files" ]; then
+        echo "No hay archivos para buscar"
+        return 0
+    fi
+    local selection=$(echo -e "$found_files" | fzf -m --header="$msg (TAB para multi-selección)")
+    [ -z "$selection" ] && return 1
+    mapfile -t files_arr <<<"$selection" # Convertir output de fzf a array
 }

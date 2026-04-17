@@ -1,113 +1,137 @@
 #!/usr/bin/env bash
 
-readonly DEPS=("curl" "git" "stow" "fzf" "tree")
+readonly VERSION="2.0.1"
+readonly DEPS=("curl" "git" "stow" "fzf" "tree" "diff")
 readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
 readonly TEMP="$REPO/.tmp"
-EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README*" "$TEMP" "$REPO/.git" "$REPO/.git*")
+EXCLUDE=("$REPO" "$REPO/.stow-local-ignore" "$REPO/README*" "$TEMP"{,/\*,*} "$REPO/.git" "$REPO/.git*")
 
 shopt -s nullglob
 timestamp=$(date +%s)
 
-main(){
-	if [ "$#" -lt 1 ]; then
-		help
-		exit
-	fi
-	opt="$1"
-	shift
-	if [[ "$opt" != "init" ]]; then
-		if ! [ -d "$REPO" ]; then
-			echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
-			exit 1
-		fi
-		check_deps "${DEPS[@]}" || exit 1
-		git_check_changes || exit 1
-		load_config || exit 1
-	fi
-	case "$opt" in
-		"init"|"i")
-			init_dotsync
-			;;
-		"add"|"a")
-			if [ "$#" -eq 0 ]; then
-				local files=()
-				if ui_select_files "$HOME" files; then
-					add_path "${files[@]}" || exit 1
-				else
-					echo "Selección cancelada"
-				fi
-			else 
-				add_path "$@" || exit 1
-			fi
-			;;
-		"list"|"ls")
-			if command -v eza > /dev/null; then
-		 		eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
-			else
-				tree -a -C -L 5 -I ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
-			fi
-			;;
-		"remove"|"rm") 
-			if [ "$#" -eq 0 ]; then
-				local files=()
-				if ui_select_files "$REPO" files; then
-					remove_path "${files[@]}" || exit 1
-				else
-					echo "Selección cancelada"
-				fi
-			else 
-				remove_path "$@" || exit 1
-			fi
-			;;
-		"edit"|"e")
-		 	ui_check_editor || exit 1
-			if [ "$#" -eq 0 ]; then
-				local files=()
-				if ui_select_files "$REPO" files; then
-					edit_file "${files[@]}" || exit 1
-				else
-					echo "Selección cancelada"
-				fi
-			else 
-				edit_file "$@" || exit 1
-			fi
-			;;
-		"log") 
-			ui_git_log || exit 1
-			;;
-		"undo")
-			git_undo || exit 1
-			;;
-		"export") 
-		 	sync_export "$@" || exit 1
-			;;
-		"import") 
-		 	sync_import "$@" || exit 1
-			;;
-		"sync") 
-		 	sync_remote "$@" || exit 1
-			;;
-		*) 
-			help
-			;;
-	esac
+main() {
+    check_deps "${DEPS[@]}" || exit 1
+    check_updates || exit 1
+    if [ "$#" -lt 1 ]; then
+        [[ "$auto_sync" == true ]] && sync_update || help # Ejecutar sin argumentos para actualizar repositorio
+        exit
+    fi
+    opt="$1"
+    shift
+    if [[ "$opt" != "init" ]]; then
+        if ! [ -d "$REPO" ]; then
+            echo -e "ERROR: No existe el repositorio dotsync\nEjecuta <dotsync init> para crearlo" >&2
+            exit 1
+        fi
+        repo_check_changes || exit 1
+        load_config || exit 1
+    fi
+    case "$opt" in
+    "init" | "i")
+        init_dotsync
+        ;;
+    "add" | "a")
+        if [ "$#" -eq 0 ]; then
+            local files=()
+            if ui_select_files "$HOME" files; then
+                add_path "${files[@]}" || exit 1
+            else
+                echo "Selección cancelada"
+            fi
+        else
+            add_path "$@" || exit 1
+        fi
+        ;;
+    "list" | "ls")
+        if command -v eza >/dev/null; then
+            eza -a --icons --tree --level 5 --ignore-glob ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
+        else
+            tree -a -C -L 5 -I ".git*|.stow-local-ignore|README*|.tmp" "$REPO"
+        fi
+        ;;
+    "remove" | "rm")
+        if [ "$#" -eq 0 ]; then
+            local files=()
+            if ui_select_files "$REPO" files; then
+                remove_path "${files[@]}" || exit 1
+            else
+                echo "Selección cancelada"
+            fi
+        else
+            remove_path "$@" || exit 1
+        fi
+        ;;
+    "edit" | "e")
+        ui_check_editor || exit 1
+        if [ "$#" -eq 0 ]; then
+            local files=()
+            if ui_select_files "$REPO" files; then
+                edit_file "${files[@]}" || exit 1
+            else
+                echo "Selección cancelada"
+            fi
+        else
+            edit_file "$@" || exit 1
+        fi
+        ;;
+    "log")
+        ui_git_log || exit 1
+        ;;
+    "undo")
+        git_undo || exit 1
+        ;;
+    "export")
+        sync_export "$@" || exit 1
+        ;;
+    "import")
+        sync_import "$@" || exit 1
+        ;;
+    "sync")
+        sync_remote "$@" || exit 1
+        ;;
+    *"version" | *"v")
+        print_version
+        ;;
+    *)
+        echo "ERROR: Commandp $opt no encontrado" >&2
+        help
+        ;;
+    esac
+    [[ "$opt" != "sync" ]] && [[ "$auto_sync" == true ]] && sync_update || exit
 }
 
-help(){
-	printf "Uso: <%b> [opción1] [opción2] ...\n" "$0"
-	echo -e "\tinit\t\t- Iniciar repositorio dotsync"
-	echo -e "\tadd\t\t- Añadir archivo o carpeta al repositorio"
-	echo -e "\tlist\t\t- Mostrar elementos del repositorio dotsync"
-	echo -e "\tremove\t\t- Sacar archivo o carpeta del repositorio"
-	echo -e "\tedit [archivo]\t- Editar archivo del repositorio"
-	echo -e "\tlog\t\t- Ver listado de cambios realizados"
-	echo -e "\tundo\t\t- Restaurar cambios en los archivos del repositorio"
-	echo -e "\texport\t\t- Exportar repositorio a otro equipo"
-	echo -e "\timport [host]\t- Importar repositorio desde un equipo"
-	echo -e "\tsync [opción]\t- Opciones de sincronización con repositorio de git remoto"
-	echo -e "\thelp\t\t- Muestra este menú de ayuda"
-	echo -e "Para más información, consulta la página del manual dotsync(1)"
+print_version() {
+    echo "Dotsync version: $VERSION"
+}
+
+check_updates() {
+    local repo_readme="https://raw.githubusercontent.com/T-Royale/dotsync/refs/heads/main/README.md"
+    local latest=$(curl "$repo_readme" 2>/dev/null | grep -i version | awk '{ print $3 }')
+    [ -z "$latest" ] && return # Fallar en silencio si no se consigue obtener contenido
+    if [[ "$latest" == "$VERSION" ]]; then
+        return 0
+    else
+        echo "Hay una nueva versión de dotsync"
+        echo "Actualiza a la nueva versión siguiendo las instrucciones en el repositorio oficial"
+        echo "https://github.com/T-Royale/dotsync"
+        return 1
+    fi
+}
+
+help() {
+    printf "Uso: <%b> [opción1] [opción2] ...\n" "$0"
+    echo -e "\tinit\t\t- Iniciar repositorio dotsync"
+    echo -e "\tadd\t\t- Añadir archivo o carpeta al repositorio"
+    echo -e "\tlist\t\t- Mostrar elementos del repositorio dotsync"
+    echo -e "\tremove\t\t- Sacar archivo o carpeta del repositorio"
+    echo -e "\tedit [archivo]\t- Editar archivo del repositorio" echo -e "\tlog\t\t- Ver listado de cambios realizados"
+    echo -e "\tundo\t\t- Restaurar cambios en los archivos del repositorio"
+    echo -e "\texport\t\t- Exportar repositorio a otro equipo"
+    echo -e "\timport [host]\t- Importar repositorio desde un equipo"
+    echo -e "\tsync [opción]\t- Opciones de sincronización con repositorio de git remoto"
+    echo -e "\thelp\t\t- Muestra este menú de ayuda"
+    echo -e "Para más información, consulta la página del manual dotsync(1)"
 }
 
 main $@

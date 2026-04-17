@@ -64,5 +64,5 @@ man-clean:
 	@rm -r $(DOCS_MAN_DIR) $(DOCS_GZ_DIR)
 
 
-.PHONY: all install test man man-install man-clean
+.PHONY: all install test man man-install man-clean $(BIN)
 .PRECIOUS: $(BIN)	# No eliminar bin automáticamente

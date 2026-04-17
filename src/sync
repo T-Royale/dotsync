@@ -1,280 +1,360 @@
 #!/usr/bin/env bash
 
-sync_remote(){
-	local opt=$1
-	shift
-	local remote
-	local branch
-	case "$opt" in
-		"push")
-			(
-				cd "$REPO"
-				remote=$(git remote)
-				branch=$(git branch | tr '*' ' ' | awk '{ print $1 }')
-				if [ -z "$remote" ]; then
-					echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto" >&2
-					return 1
-				fi
-				if ! git push -u "$remote" "$branch" "$@"; then
-					echo "ERROR: Al subir los cambios al repositorio remoto" >&2
-					return 1
-				else
-					echo "Los cambios se han subido exitosamente al repositorio remoto"
-				fi
-			) || return 1
-			;;
-		"pull")
-			(
-				cd "$REPO"
-				remote=$(git remote)
-				if [ -z "$remote" ]; then
-					echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto" >&2
-					return 1
-				fi
-				cd "$REPO"
-				if ! git pull "$@"; then
-					echo "ERROR: Al descargar los cambios del repositorio remoto" >&2
-					return 1
-				else 
-					echo "Descargado el contenido del repositorio remoto con éxito"
-				fi
-				stow .
-			) || return 1
-			;;
-		"set-remote")
-			(
-				cd "$REPO"
-				remote=$(git remote)
-				if [ -z "$remote" ]; then
-					if ! git remote add origin "$1"; then
-						echo "ERROR: Al crear y establecer enlace remoto para el repositorio" >&2
-						return 1
-					else
-						echo "Dirección de repositorio remoto establecida con éxito"
-					fi
-				else
-					if ! git remote set-url "$remote" "$1"; then
-						echo "ERROR: Al modificar enlace de repositorio remoto" >&2
-						return 1
-					else
-						echo "Dirección de repositorio remoto reestablecida con éxito"
-					fi
-				fi
-			) || return 1
-			;;
-		"get-remote")
-		 	(
-				cd "$REPO"
-				remote=$(git remote)
-				if [ -z "$remote" ]; then
-					echo "ERROR: No existe un repositorio remoto" >&2
-					return 1
-				fi
-				local link=$(git remote get-url "$remote")
-				echo "El repositorio remoto definido es"
-				echo "$link"
-			) || return 1
-			;;
-		*)
-			echo "Opción $opt desconocida"
-			echo "Consulta dotsync-sync(1) para más información."
-			return 1
-			;;
-	esac
+sync_update() {
+    (
+        cd "$REPO" || return 1
+        remote=$(git remote)
+        if [ -z "$remote" ]; then
+            return 0
+        fi
+        git fetch >/dev/null 2>&1 || {
+            echo "ERROR: No se pudo actualizar la información del remoto" >&2
+            return 1
+        }
+        # Hashes de commits para determinar si hay cambios para subir o bajar.
+        local local_hash=$(git rev-parse @)
+        local remote_hash=$(git rev-parse @{u})
+        local base_hash=$(git merge-base @ @{u}) # Último hash común
+
+        if [ "$local_hash" == "$remote_hash" ]; then
+            echo "El repositorio remoto está actualizado"
+            return 0
+        elif [ "$local_hash" == "$base_hash" ]; then
+            if git pull >/dev/null 2>&1; then
+                echo "Se han descargado cambios del repositorio remoto"
+                return 0
+            else
+                echo "ERROR: Al descargar cambios del repositorio remoto" >&2
+                return 1
+            fi
+        elif [ "$remote_hash" == "$base_hash" ]; then
+            if git push >/dev/null 2>&1; then
+                echo "Se han subido cambios al repositorio remoto"
+                return 0
+            else
+                echo "ERROR: Al subir cambios al repositorio remoto" >&2
+                return 1
+            fi
+        else
+            if git pull --rebase && git push >/dev/null 2>&1; then
+                echo "Se han sincronizado los cambios con el repositorio remoto"
+                return 0
+            else
+                echo "ERROR: Al sincronizar cambios con el repositorio remoto" >&2
+                return 1
+            fi
+        fi
+    )
 }
 
-sync_import(){
-	check_deps "tar" "sha256sum" "gpg" "socat" "ping" || return 1
-	local port=57342
-	local arg
-	OPTIND=1
-	while getopts "p:" arg; do
-		case "$arg" in
-			p) 	
-				# Validar numero de puerto
-				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
-					port="$OPTARG"
-				else 
-					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
-					return 1
-				fi
-				;;
-			*)
-		esac
-	done
-	shift $((OPTIND-1))
-	local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
-	shift
-	if ! ping -qc 1 "$ip" > /dev/null; then
-		echo "ERROR: Al conectarse al servidor" >&2
-		return 1
-	fi
-	local dstdir="$TEMP/import-${timestamp}"
-	mkdir -p "$dstdir"
-	local tarname="import-${timestamp}.tar.gz"
-	local checksum="import-${timestamp}.sum"
-	local bundle="import-${timestamp}-bundle.tar.gz" 	# Bundle con el tarball y el checksum
-	local encrypted="${bundle}.gpg" 					# Contiene el tarball final encriptado
-	(
-		cd "$dstdir" || return 1
-		if ! socat -u "TCP:${ip}:${port}" STDOUT > "$encrypted" ; then
-			echo "ERROR: Al obtener archivo cifrado a través de la red" >&2
-			return 1
-		else
-			echo "Archivo recibido con éxito"
-		fi
-		if ! gpg -d --output "$bundle" "$encrypted" > /dev/null; then
-			echo "ERROR: Al desencriptar el archivo obtenido" >&2
-			return 1
-		fi
-		if ! tar -xzf "$bundle"; then
-			echo "ERROR: al descomprimir el bundle" >&2
-			return 1
-		fi
-		mv export*.tar.gz "$tarname"	# Renombrar los archivos
-		mv export*.sum "$checksum"		# Renombrar los archivos
-		if ! [[ $(sha256sum "$tarname" | awk '{ print $1 }') == $(cat "$checksum") ]]; then
-			echo "CUIDADO: EL CHECKSUM DEL ARCHIVO RECIBIDO NO ENCAJA CON EL DEL ARCHIVO ENVIADO"
-			echo "EL ARCHIVO HA SIDO MODIFICADO DURANTE SU ENVÍO POR UN AGENTE EXTERNO"
-			return 2
-		else
-			echo "Checksum verificado con éxito"
-		fi
-		local files_dir="${dstdir}/files_dir"
-		mkdir "$files_dir"
-		if ! tar -xzf "$tarname" -C "$files_dir"; then
-			echo "ERROR: Al descomprimir archivo para obtener dotfiles" >&2
-			return 1
-		fi
-		cd "$files_dir"
-		shopt -s dotglob
-		shopt -s globstar
-		local file
-		local err=0 					# Comprobar si ha habido un error
-		local -a imported_files			# Archivos importados con éxito
-		for file in **; do
-			[ -d "$file" ] && continue	# Saltar si es un directorio
-			file_real=$(realpath "$file")
-			file_repo="${file_real/${files_dir}/${REPO}}"
-			# Crear directorio destino si no existe
-			local dest_dir="${file_repo%/*}"
-			mkdir -p "$dest_dir"
-			
-			if [ -e "$file_repo" ]; then
-				echo "$file ya existe en el repositorio"
-				echo "¿Deseas reemplazarlo?"
-				local ans
-				select ans in "Sí: Reemplazar archivo existente por archivo descargado" "No: Dejar archivo existente como está"; do
-					[ -n "$ans" ] break;
-				done
-				if [[ "$ans" == "No"* ]]; then
-					continue
-				fi
-			fi
-
-			if cp --force "$file" "$file_repo"; then
-				imported_files+=("$file")
-			else 
-				echo "ERROR: Al copiar $file" >&2
-				(( err++ ))
-				continue
-			fi
-		done
-		cd $REPO
-		if [ "$err" -gt 0 ]; then
-			echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado" >&2
-			git clean -fd
-			return 1
-		else
-			echo "Importación completada, se guardarán los cambios"
-			git add -A
-			git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}" > /dev/null
-			stow .
-		fi
-	) || return 1
+sync_remote() {
+    local opt=$1
+    if [[ -z "$opt" ]]; then
+        sync_update || help
+        return
+    fi
+    shift
+    local remote
+    local branch
+    case "$opt" in
+    "push")
+        (
+            cd "$REPO"
+            remote=$(git remote)
+            branch=$(git branch | tr '*' ' ' | awk '{ print $1 }')
+            if [ -z "$remote" ]; then
+                echo "ERROR: No se puede hacer push sin haber definido un repositorio remoto" >&2
+                return 1
+            fi
+            if ! git push -u "$remote" "$branch" "$@"; then
+                echo "ERROR: Al subir los cambios al repositorio remoto" >&2
+                return 1
+            else
+                echo "Los cambios se han subido exitosamente al repositorio remoto"
+            fi
+        ) || return 1
+        ;;
+    "pull")
+        (
+            cd "$REPO"
+            remote=$(git remote)
+            if [ -z "$remote" ]; then
+                echo "ERROR: No se puede hacer pull sin haber definido un repositorio remoto" >&2
+                return 1
+            fi
+            cd "$REPO"
+            if ! git pull "$@"; then
+                echo "ERROR: Al descargar los cambios del repositorio remoto" >&2
+                return 1
+            else
+                echo "Descargado el contenido del repositorio remoto con éxito"
+            fi
+            stow .
+        ) || return 1
+        ;;
+    "set-remote")
+        (
+            cd "$REPO"
+            remote=$(git remote)
+            if [ -z "$remote" ]; then
+                if ! git remote add origin "$1"; then
+                    echo "ERROR: Al crear y establecer enlace remoto para el repositorio" >&2
+                    return 1
+                else
+                    echo "Dirección de repositorio remoto establecida con éxito"
+                fi
+            else
+                if ! git remote set-url "$remote" "$1"; then
+                    echo "ERROR: Al modificar enlace de repositorio remoto" >&2
+                    return 1
+                else
+                    echo "Dirección de repositorio remoto reestablecida con éxito"
+                fi
+            fi
+        ) || return 1
+        ;;
+    "get-remote")
+        (
+            cd "$REPO"
+            remote=$(git remote)
+            if [ -z "$remote" ]; then
+                echo "ERROR: No existe un repositorio remoto" >&2
+                return 1
+            fi
+            local link=$(git remote get-url "$remote")
+            echo "El repositorio remoto definido es"
+            echo "$link"
+        ) || return 1
+        ;;
+    *)
+        echo "Opción $opt desconocida"
+        echo "Consulta dotsync-sync(1) para más información."
+        return 1
+        ;;
+    esac
 }
 
-sync_export(){
-	check_deps "tar" "sha256sum" "gpg" "socat" || return 1
-	local files=()
-	local port=57342
-	local arg
-	OPTIND=1
-	while getopts "p:" arg; do
-		case "$arg" in
-			p)
-				# Validar numero de puerto
-				if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
-					port="$OPTARG"
-				else 
-					echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
-					return 1
-				fi
-				;;
-			*)
-		esac
-	done
-	shift $((OPTIND-1))
-	local file
-	if [[ $1 == "all" ]]; then
-		shopt -s dotglob
-		shopt -s globstar
-		for file in "$REPO"/**; do
-			[ -f "$file" ] && ! is_excluded "$file" && files+=("$file")
-		done
-		shift
-	fi
-	for file in $@; do
-		if [ -L "$file" ]; then
-			file=$(readlink -f "$file")
-		fi
-		file=$(realpath "$file")
-		if [[ "$file" == "$REPO"* ]]; then
-			files+=("$file")
-		elif is_excluded "$file"; then
-			echo "OMITIDO: $file"
-		else 
-			echo "ERROR: $file no pertenece al repositorio" >&2
-			return 1
-		fi	
-	done
-	[ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
-	local dstdir="$TEMP/export-${timestamp}"
-	mkdir -p "$dstdir"
-	local tarname="export-${timestamp}.tar.gz"
-	local checksum="export-${timestamp}.sum"
-	local bundle="export-${timestamp}-bundle.tar.gz" 	# Bundle con el tarball y el checksum
-	local encrypted="${bundle}.gpg" 					# Contiene el tarball final encriptado
-	(
-		cd "$REPO" || return 1
-		for i in "${!files[@]}"; do
-			files[$i]="${files[$i]#"$REPO"/}"	# obtener ruta relativa al repositorio
-		done
-		if ! tar -czf "${dstdir}/${tarname}" "${files[@]}" > /dev/null; then
-			echo "ERROR: al generar tarball para exportar" >&2
-			return 1
-		fi
-		cd "$dstdir"
-		if ! sha256sum "$tarname" | awk '{ print $1 }' > "$checksum"; then
-			echo "ERROR: Al generar checksum" >&2
-			return 1
-		fi
-		if ! tar -czf "$bundle" "$tarname" "$checksum" > /dev/null; then
-			echo "ERROR: Al generar tarball para cifrar" >&2
-			return 1
-		fi	
-		if ! gpg -c --output "$encrypted" "$bundle" > /dev/null; then
-			echo "ERROR: Al cifrar contenidos para exportar" >&2
-			return 1
-		fi
+sync_import() {
+    check_deps "tar" "sha256sum" "gpg" "socat" "ping" || return 1
+    local port=57342
+    local arg
+    OPTIND=1
+    while getopts "p:" arg; do
+        case "$arg" in
+        p)
+            # Validar numero de puerto
+            if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
+                port="$OPTARG"
+            else
+                echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
+                return 1
+            fi
+            ;;
+        *) ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+    local ip="${1?:'ERROR: Especifica la dirección IP del servidor'}"
+    shift
+    if ! ping -qc 1 "$ip" >/dev/null; then
+        echo "ERROR: Al conectarse al servidor" >&2
+        return 1
+    fi
+    local dstdir="$TEMP/import-${timestamp}"
+    mkdir -p "$dstdir"
+    local tarname="import-${timestamp}.tar.gz"
+    local checksum="import-${timestamp}.sum"
+    local bundle="import-${timestamp}-bundle.tar.gz" # Bundle con el tarball y el checksum
+    local encrypted="${bundle}.gpg"                  # Contiene el tarball final encriptado
+    (
+        cd "$dstdir" || return 1
+        if ! socat -u "TCP:${ip}:${port}" STDOUT >"$encrypted"; then
+            echo "ERROR: Al obtener archivo cifrado a través de la red" >&2
+            return 1
+        else
+            echo "Archivo recibido con éxito"
+        fi
+        if ! gpg -d --output "$bundle" "$encrypted" >/dev/null; then
+            echo "ERROR: Al desencriptar el archivo obtenido" >&2
+            return 1
+        fi
+        if ! tar -xzf "$bundle"; then
+            echo "ERROR: al descomprimir el bundle" >&2
+            return 1
+        fi
+        mv export*.tar.gz "$tarname" # Renombrar los archivos
+        mv export*.sum "$checksum"   # Renombrar los archivos
+        if ! [[ $(sha256sum "$tarname" | awk '{ print $1 }') == $(cat "$checksum") ]]; then
+            echo "CUIDADO: EL CHECKSUM DEL ARCHIVO RECIBIDO NO ENCAJA CON EL DEL ARCHIVO ENVIADO"
+            echo "EL ARCHIVO HA SIDO MODIFICADO DURANTE SU ENVÍO POR UN AGENTE EXTERNO"
+            return 2
+        else
+            echo "Checksum verificado con éxito"
+        fi
+        local files_dir="${dstdir}/files_dir"
+        mkdir "$files_dir"
+        if ! tar -xzf "$tarname" -C "$files_dir"; then
+            echo "ERROR: Al descomprimir archivo para obtener dotfiles" >&2
+            return 1
+        fi
+        cd "$files_dir"
+        shopt -s dotglob
+        shopt -s globstar
+        local file
+        local err=0             # Comprobar si ha habido un error
+        local -a imported_files # Archivos importados con éxito
+        for file in **; do
+            [ -d "$file" ] && continue # Saltar si es un directorio
+            file_real=$(realpath "$file")
+            file_repo="${file_real/${files_dir}/${REPO}}"
+            # Crear directorio destino si no existe
+            local dest_dir="${file_repo%/*}"
+            mkdir -p "$dest_dir"
 
-		echo "Preparado para exportar configuración, el cliente puede iniciar una conexión"
+            if [ -e "$file_repo" ]; then
+                echo "$file ya existe en el repositorio"
+                echo "¿Deseas reemplazarlo?"
+                local ans
+                select ans in "Sí: Reemplazar archivo existente por archivo descargado" "No: Dejar archivo existente como está"; do
+                    [ -n "$ans" ] break
+                done
+                if [[ "$ans" == "No"* ]]; then
+                    continue
+                fi
+            fi
 
-		if ! socat -u "FILE:${encrypted}" "TCP-LISTEN:${port},reuseaddr"; then
-			echo "ERROR: Al enviar archivo encriptado a través de la red" >&2
-			return 1
-		else
-			echo "Los archivos seleccionados han sido exportados correctamente"
-		fi
-	) || return 1
+            # Comprobar si el archivo podría entrar en conflicto con stow cuando se genere el enlace simbólico en $HOME
+            # Esto evita conflictos de stow si $HOME/.config/nvim existe pero no está en el repositorio
+            local file_after_symlink="${file_repo/${REPO}/${HOME}}"
+            if [ -f "$file_after_symlink" ]; then
+                echo "$file_after_symlink ya existe en el sistema, pero no pertenece al repositorio"
+                echo "¿Deseas reemplazarlo por el archivo descargado?"
+                select ans in \
+                    "Sí: Reemplazar archivo existente por archivo descargado" \
+                    "Ver differencias entre archivos" \
+                    "No: Dejar archivo existente como está"; do
+                    if [[ "$ans" == *"dif"* ]]; then
+                        pager "$(diff "$file_real" "$file_after_symlink")"
+                        continue # Continue no sale de select
+                    fi
+                    [[ -n "$ans" ]] && break
+                done
+                if [[ "$ans" == "S"* ]]; then
+                    if ! rm "$file_after_symlink"; then
+                        echo "Error al eliminar el archivo $file_after_symlink, no se añadirá $file_repo al repositorio"
+                        continue
+                    fi
+                elif [[ "$ans" == "N"* ]]; then
+                    continue
+                fi
+            fi
+
+            if cp --force "$file" "$file_repo"; then
+                imported_files+=("$file")
+            else
+                echo "ERROR: Al copiar $file" >&2
+                ((err++))
+                continue
+            fi
+        done
+        cd $REPO
+        # Condiciones de salida del programa
+        if [ "$err" -gt 0 ]; then
+            echo "ERROR: Han ocurrido $err errores durante la importación, se restaurará el último punto de guardado" >&2
+            git clean -fd
+            return 1
+        elif [ -z "$imported_files" ]; then
+            echo "No se han importado archivos, no hay cambios que guardar"
+        else
+            echo "Importación completada, se guardarán los cambios"
+            git add -A
+            git commit -m "IMPORT desde $ip" -m "Archivos importados: ${imported_files[@]}" >/dev/null
+            stow .
+        fi
+    ) || return 1
+}
+
+sync_export() {
+    check_deps "tar" "sha256sum" "gpg" "socat" || return 1
+    local files=()
+    local port=57342
+    local arg
+    OPTIND=1
+    while getopts "p:" arg; do
+        case "$arg" in
+        p)
+            # Validar numero de puerto
+            if [[ "$OPTARG" =~ ^[0-9]+$ ]] && [ "$OPTARG" -gt 1023 ] && [ "$OPTARG" -lt 65535 ]; then
+                port="$OPTARG"
+            else
+                echo "ERROR: NÚMERO DE PUERTO $OPTARG INVALIDO" >&2
+                return 1
+            fi
+            ;;
+        *) ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+    local file
+    if [[ $1 == "all" ]]; then
+        shopt -s dotglob
+        shopt -s globstar
+        for file in "$REPO"/**; do
+            [ -f "$file" ] && ! is_excluded "$file" && files+=("$file")
+        done
+        shift
+    fi
+    for file in $@; do
+        if [ -L "$file" ]; then
+            file=$(readlink -f "$file")
+        fi
+        file=$(realpath "$file")
+        if [[ "$file" == "$REPO"* ]]; then
+            files+=("$file")
+        elif is_excluded "$file"; then
+            echo "OMITIDO: $file"
+        else
+            echo "ERROR: $file no pertenece al repositorio" >&2
+            return 1
+        fi
+    done
+    [ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
+    local dstdir="$TEMP/export-${timestamp}"
+    mkdir -p "$dstdir"
+    local tarname="export-${timestamp}.tar.gz"
+    local checksum="export-${timestamp}.sum"
+    local bundle="export-${timestamp}-bundle.tar.gz" # Bundle con el tarball y el checksum
+    local encrypted="${bundle}.gpg"                  # Contiene el tarball final encriptado
+    (
+        cd "$REPO" || return 1
+        for i in "${!files[@]}"; do
+            files[$i]="${files[$i]#"$REPO"/}" # obtener ruta relativa al repositorio
+        done
+        if ! tar -czf "${dstdir}/${tarname}" "${files[@]}" >/dev/null; then
+            echo "ERROR: al generar tarball para exportar" >&2
+            return 1
+        fi
+        cd "$dstdir"
+        if ! sha256sum "$tarname" | awk '{ print $1 }' >"$checksum"; then
+            echo "ERROR: Al generar checksum" >&2
+            return 1
+        fi
+        if ! tar -czf "$bundle" "$tarname" "$checksum" >/dev/null; then
+            echo "ERROR: Al generar tarball para cifrar" >&2
+            return 1
+        fi
+        if ! gpg -c --output "$encrypted" "$bundle" >/dev/null; then
+            echo "ERROR: Al cifrar contenidos para exportar" >&2
+            return 1
+        fi
+
+        echo "Preparado para exportar configuración, el cliente puede iniciar una conexión"
+
+        if ! socat -u "FILE:${encrypted}" "TCP-LISTEN:${port},reuseaddr"; then
+            echo "ERROR: Al enviar archivo encriptado a través de la red" >&2
+            return 1
+        else
+            echo "Los archivos seleccionados han sido exportados correctamente"
+        fi
+    ) || return 1
 }

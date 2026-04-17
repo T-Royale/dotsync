@@ -33,5 +33,4 @@ make install
 ### Opcionales
 + eza		- ls mejorado
 + bat		- cat mejorado
-## Estado: 
-BETA 1.0
+## Version: 2.0.1
