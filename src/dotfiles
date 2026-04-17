@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
-git_check_changes(){	# Comprobar se han modificado archivos manualmente
+repo_check_changes(){	# Comprobar se han modificado archivos manualmente
 	(
 		cd "$REPO"
 		git diff --quiet && return	# Salir si no hay cambios 
