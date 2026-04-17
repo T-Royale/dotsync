@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+readonly VERSION="1.0.2"
 readonly DEPS=("curl" "git" "stow" "fzf" "tree" "diff")
 readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
@@ -11,6 +12,7 @@ timestamp=$(date +%s)
 
 main(){
     check_deps "${DEPS[@]}" || exit 1
+    check_updates || exit 1
 	if [ "$#" -lt 1 ]; then
         sync_update || help    # Ejecutar sin argumentos para actualizar repositorio
         exit
@@ -88,11 +90,32 @@ main(){
 		"sync") 
 		 	sync_remote "$@" || exit 1
 			;;
+        *"version"|*"v")
+            print_version
+            ;;
 		*) 
 			help
 			;;
 	esac
     [[ "$opt" != "sync" ]] && sync_update || exit   # No sincronizar si la orden es sync
+}
+
+print_version(){
+    echo "Dotsync version: $VERSION"
+}
+
+check_updates(){
+    local repo_readme="https://raw.githubusercontent.com/T-Royale/dotsync/refs/heads/main/README.md"
+    local latest=$(curl "$repo_readme" 2>/dev/null | grep -i version | awk '{ print $3 }')
+    [ -z "$latest" ] && return      # Fallar en silencio si no se consigue obtener contenido
+    if [[ "$latest" == "$version" ]]; then
+        return 0
+    else
+        echo "Hay una nueva versión de dotsync"
+        echo "Actualiza a la nueva versión siguiendo las instrucciones en el repositorio oficial"
+        echo "https://github.com/T-Royale/dotsync"
+        return 1
+    fi
 }
 
 help(){
