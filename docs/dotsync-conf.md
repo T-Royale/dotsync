@@ -1,4 +1,4 @@
-% DOTSYNC-CONF(1) Version 1.0.2 | Manual del Usuario
+% DOTSYNC-CONF(1) Version 2.0.1 | Manual del Usuario
 % Teo Morales
 % Marzo 2026
 
