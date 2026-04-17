@@ -1,4 +1,4 @@
-% DOTSYNC-UI(1) Version 1.0.0 | Manual del Usuario
+% DOTSYNC-UI(1) Version 2.0.1 | Manual del Usuario
 % Teo Morales
 % Marzo 2026
 
