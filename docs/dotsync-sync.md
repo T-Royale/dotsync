@@ -40,6 +40,13 @@ Eso le permite sincronizarse sin herramientas adicionales con servicios de hosti
 Algunos de estos son GitHub, CodeBerg, GitLab y Gitee.
 La sincronización debe hacerse manualmente, ejecutando *dotsync sync push/pull* dependiendo de lo que se quiera hacer.
 
+## SINCRONIZACIÓN AUTOMÁTICA
+La sincronización consiste en subir los cambios locales y descargar los cambios remotos de forma que se apliquen todas las modificaciones realizadas de forma clara ycoherente.
+Está activada por defecto.
+Si está activada y dotsync se ejecuta sin argumentos adicionales, se sincronizará con el repositorio remoto, si dotsync se ejecuta con opciones, la sincronización se realizará al terminar esa ejecución de dotsync.
+La sincronización automática puede desactivar desde la configuración *dotsync-sync(1)* 
+Si está desactivada sólo se podrá sincronizar manualmente, mediante el comando *dotsync sync* (sincronización completa), *dotsync sync push*(subir), *dotsync sync pull*(bajar).
+
 ## CONFIGURACIÓN
 Lo único que hay que configurar en dotsync es el enlace del repositorio remoto.
 Se configura con el siguiente comando:
