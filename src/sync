@@ -111,6 +111,7 @@ sync_remote() {
                     echo "Dirección de repositorio remoto reestablecida con éxito"
                 fi
             fi
+            sync_remote push || return 1
         ) || return 1
         ;;
     "get-remote")
