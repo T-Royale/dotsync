@@ -178,9 +178,9 @@ remove_path() {
                 git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null # Volver a vincular lo que queda
+            echo "Se han eliminado los elementos del repositorio"
         )
     fi
-    echo "Se han eliminado los elementos del repositorio"
     return 0
 }
 
@@ -244,9 +244,9 @@ add_path() {
                 git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null
+            echo "Se han añadido correctamente los elementos al repositorio"
         )
     fi
-    echo "Se han añadido correctamente los elementos al repositorio"
     return 0
 }
 
