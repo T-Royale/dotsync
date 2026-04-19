@@ -175,7 +175,7 @@ remove_path() {
             cd "$REPO"
             git add -A >/dev/null
             if ! git diff-index --quiet HEAD --; then # Evitar comitar sin cambios
-                git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[@]}" >/dev/null
+                git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null # Volver a vincular lo que queda
         )
@@ -241,7 +241,7 @@ add_path() {
             if [ "$#" -eq 1 ]; then
                 git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" >/dev/null
             else
-                git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[@]}" >/dev/null
+                git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null
         )
