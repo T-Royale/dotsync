@@ -98,7 +98,9 @@ main() {
         help
         ;;
     esac
-    [[ "$opt" != "sync" ]] && [[ "$auto_sync" == true ]] && sync_update || exit
+    if [[ "$opt" != "sync" ]] && [[ "$auto_sync" == true ]]; then
+        sync_update || exit 1
+    fi
 }
 
 print_version() {
