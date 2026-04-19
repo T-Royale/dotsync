@@ -251,6 +251,10 @@ add_path() {
 }
 
 init_dotsync() {
+    if [ -d "$REPO" ]; then
+        echo "El repositorio dotsync ya existe en $REPO" >&2
+        exit 1
+    fi
     if ! mkdir -p "$REPO"; then
         echo "Error al crear repositorio en $REPO"
         exit 1
@@ -269,7 +273,7 @@ init_dotsync() {
         printf '.tmp\n.stow-local-ignore\n.gitignore' >.gitignore
         local readme_file="README.md"
         echo "# Este es tu repositorio dotsync" >"$readme_file"
-        echo "## Más información sobre dotsync en [este enlace](https://github.com/T-Royale/dotsync)" >>"$readme_file"
+        echo "## Más información sobre dotsync en [el repositorio oficial](https://github.com/T-Royale/dotsync)" >>"$readme_file"
         echo "### Dotsync es un software libre desarollado por [Teo Morales](https://github.com/T-Royale) bajo licencia GPLv3" >>"$readme_file"
         echo "> Si no has recibido una copia de esta licencia junto al programa visita [gnu.org](https://gnu.org/licences/gpl.html)" >>"$readme_file"
         if ! git add -A >/dev/null; then

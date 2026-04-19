@@ -228,7 +228,7 @@ sync_import() {
             # Esto evita conflictos de stow si $HOME/.config/nvim existe pero no está en el repositorio
             local file_after_symlink="${file_repo/${REPO}/${HOME}}"
             if [ -f "$file_after_symlink" ]; then
-                echo "$file_after_symlink ya existe en el sistema, pero no pertenece al repositorio"
+                echo "$file_after_symlink ya existe en el sistema"
                 echo "¿Deseas reemplazarlo por el archivo descargado?"
                 select ans in \
                     "Sí: Reemplazar archivo existente por archivo descargado" \
