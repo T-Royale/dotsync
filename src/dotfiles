@@ -265,7 +265,7 @@ init_dotsync() {
             echo "Error al iniciar repositorio git en $REPO"
             exit 1
         fi
-        printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README*\n' >.stow-local-ignore
+        printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README.md\n' >.stow-local-ignore
         printf '.tmp\n.stow-local-ignore\n.gitignore' >.gitignore
         local readme_file="README.md"
         echo "# Este es tu repositorio dotsync" >"$readme_file"
