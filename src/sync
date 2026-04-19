@@ -217,7 +217,7 @@ sync_import() {
                 echo "¿Deseas reemplazarlo?"
                 local ans
                 select ans in "Sí: Reemplazar archivo existente por archivo descargado" "No: Dejar archivo existente como está"; do
-                    [ -n "$ans" ] break
+                    [ -n "$ans" ] && break
                 done
                 if [[ "$ans" == "No"* ]]; then
                     continue
