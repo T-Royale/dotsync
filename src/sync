@@ -111,6 +111,7 @@ sync_remote() {
                     echo "Dirección de repositorio remoto reestablecida con éxito"
                 fi
             fi
+            sync_remote push || return 1
         ) || return 1
         ;;
     "get-remote")
@@ -206,6 +207,10 @@ sync_import() {
         for file in **; do
             [ -d "$file" ] && continue # Saltar si es un directorio
             file_real=$(realpath "$file")
+            if is_excluded "$file_real"; then
+                echo "OMITIDO: $file"
+                continue
+            fi
             file_repo="${file_real/${files_dir}/${REPO}}"
             # Crear directorio destino si no existe
             local dest_dir="${file_repo%/*}"
@@ -216,7 +221,7 @@ sync_import() {
                 echo "¿Deseas reemplazarlo?"
                 local ans
                 select ans in "Sí: Reemplazar archivo existente por archivo descargado" "No: Dejar archivo existente como está"; do
-                    [ -n "$ans" ] break
+                    [ -n "$ans" ] && break
                 done
                 if [[ "$ans" == "No"* ]]; then
                     continue
@@ -227,7 +232,7 @@ sync_import() {
             # Esto evita conflictos de stow si $HOME/.config/nvim existe pero no está en el repositorio
             local file_after_symlink="${file_repo/${REPO}/${HOME}}"
             if [ -f "$file_after_symlink" ]; then
-                echo "$file_after_symlink ya existe en el sistema, pero no pertenece al repositorio"
+                echo "$file_after_symlink ya existe en el sistema"
                 echo "¿Deseas reemplazarlo por el archivo descargado?"
                 select ans in \
                     "Sí: Reemplazar archivo existente por archivo descargado" \
@@ -300,7 +305,7 @@ sync_export() {
         shopt -s dotglob
         shopt -s globstar
         for file in "$REPO"/**; do
-            [ -f "$file" ] && ! is_excluded "$file" && files+=("$file")
+            [ -f "$file" ] && files+=("$file")
         done
         shift
     fi
@@ -319,6 +324,7 @@ sync_export() {
         fi
     done
     [ -z "$files" ] && ui_select_files "$REPO" files "Selecciona los archivos para exportar"
+    [ -z "$files" ] && return 1
     local dstdir="$TEMP/export-${timestamp}"
     mkdir -p "$dstdir"
     local tarname="export-${timestamp}.tar.gz"

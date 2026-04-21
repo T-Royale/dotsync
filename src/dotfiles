@@ -175,12 +175,12 @@ remove_path() {
             cd "$REPO"
             git add -A >/dev/null
             if ! git diff-index --quiet HEAD --; then # Evitar comitar sin cambios
-                git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[@]}" >/dev/null
+                git commit -m "QUITAR: Archivos restaurados al HOME" -m "Archivos quitados: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null # Volver a vincular lo que queda
+            echo "Se han eliminado los elementos del repositorio"
         )
     fi
-    echo "Se han eliminado los elementos del repositorio"
     return 0
 }
 
@@ -241,16 +241,20 @@ add_path() {
             if [ "$#" -eq 1 ]; then
                 git commit -m "AÑADIR: $1" -m "Se han añadido $1 al repositorio dotsync" >/dev/null
             else
-                git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[@]}" >/dev/null
+                git commit -m "AÑADIR: Varios archivos" -m "Archivos añadidos: ${files[*]}" >/dev/null
             fi
             stow . >/dev/null
+            echo "Se han añadido correctamente los elementos al repositorio"
         )
     fi
-    echo "Se han añadido correctamente los elementos al repositorio"
     return 0
 }
 
 init_dotsync() {
+    if [ -d "$REPO" ]; then
+        echo "El repositorio dotsync ya existe en $REPO" >&2
+        exit 1
+    fi
     if ! mkdir -p "$REPO"; then
         echo "Error al crear repositorio en $REPO"
         exit 1
@@ -265,11 +269,11 @@ init_dotsync() {
             echo "Error al iniciar repositorio git en $REPO"
             exit 1
         fi
-        printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README*\n' >.stow-local-ignore
+        printf '\n\.git\n\.gitignore\n\.gitmodules\n^/README.md\n' >.stow-local-ignore
         printf '.tmp\n.stow-local-ignore\n.gitignore' >.gitignore
         local readme_file="README.md"
         echo "# Este es tu repositorio dotsync" >"$readme_file"
-        echo "## Más información sobre dotsync en [este enlace](https://github.com/T-Royale/dotsync)" >>"$readme_file"
+        echo "## Más información sobre dotsync en [el repositorio oficial](https://github.com/T-Royale/dotsync)" >>"$readme_file"
         echo "### Dotsync es un software libre desarollado por [Teo Morales](https://github.com/T-Royale) bajo licencia GPLv3" >>"$readme_file"
         echo "> Si no has recibido una copia de esta licencia junto al programa visita [gnu.org](https://gnu.org/licences/gpl.html)" >>"$readme_file"
         if ! git add -A >/dev/null; then
