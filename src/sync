@@ -207,11 +207,11 @@ sync_import() {
         for file in **; do
             [ -d "$file" ] && continue # Saltar si es un directorio
             file_real=$(realpath "$file")
-            if is_excluded "$file_real"; then
+            file_repo="${file_real/${files_dir}/${REPO}}"
+            if is_excluded "$file_repo"; then
                 echo "OMITIDO: $file"
                 continue
             fi
-            file_repo="${file_real/${files_dir}/${REPO}}"
             # Crear directorio destino si no existe
             local dest_dir="${file_repo%/*}"
             mkdir -p "$dest_dir"
