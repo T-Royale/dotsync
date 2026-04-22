@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly VERSION="2.2"
+readonly DOTSYNC_VERSION="2.2"
 readonly DEPS=("curl" "git" "stow" "fzf" "tree" "diff")
 readonly CONF="${HOME}/.config/dotsync/dotsync.conf"
 readonly REPO="$HOME/.dotsync"
@@ -104,15 +104,15 @@ main() {
 }
 
 print_version() {
-    echo "Dotsync version: $VERSION"
+    echo "Dotsync version: $DOTSYNC_VERSION"
 }
 
 check_updates() {
-    [[ "$VERSION" == "dev"* ]] && return 0      # Saltar comprobación si es versión en desarollo
+    [[ "$DOTSYNC_VERSION" == "dev"* ]] && return 0      # Saltar comprobación si es versión en desarollo
     local repo_readme="https://raw.githubusercontent.com/T-Royale/dotsync/refs/heads/main/README.md"
     local latest=$(curl "$repo_readme" 2>/dev/null | grep -i version | awk '{ print $3 }')
     [ -z "$latest" ] && return # Fallar en silencio si no se consigue obtener contenido
-    if [[ "$latest" == "$VERSION" ]]; then
+    if [[ "$latest" == "$DOTSYNC_VERSION" ]]; then
         return 0
     else
         echo "Hay una nueva versión de dotsync"
