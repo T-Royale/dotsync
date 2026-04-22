@@ -57,7 +57,7 @@ man: $(DOCS_MAN) $(DOCS_GZ)
 
 man-install: man
 	@sudo cp $(DOCS_GZ_DIR)/* $(MANPATH)
-	@sudo mandb > /dev/null
+	@sudo mandb > /dev/null 2>&1
 	@echo "Páginas man instaladas con éxito"
 
 man-clean: 
