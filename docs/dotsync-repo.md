@@ -1,4 +1,4 @@
-% DOTSYNC-REPO(1) Version 2.1 | Manual del Usuario
+% DOTSYNC-REPO(1) Version 2.2 | Manual del Usuario
 % Teo Morales
 % Marzo 2026
 
