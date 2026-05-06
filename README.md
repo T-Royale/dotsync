@@ -33,4 +33,4 @@ make install
 ### Opcionales
 + eza		- ls mejorado
 + bat		- cat mejorado
-## Version: 2.2
+## Version: dev-2.3
