@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Funciones relacionadas con la gestión del repositorio dotsync
 
+repo_remove_tmp() {
+    local contents=$(ls "$TEMP")
+    if [ -n "$contents" ]; then
+        if ! rm -fr "$TEMP/"*; then
+            echo "ERROR: Al eliminar archivos temporales" >&2
+            return 1
+        else
+            echo "Archivos temporales eliminados con éxito"
+        fi
+    fi
+}
+
 repo_check_changes() { # Comprobar se han modificado archivos manualmente
     (
         cd "$REPO"

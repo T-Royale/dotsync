@@ -101,6 +101,7 @@ main() {
     if [[ "$opt" != "sync" ]] && [[ "$auto_sync" == true ]]; then
         sync_update || exit 1
     fi
+    repo_remove_tmp
 }
 
 print_version() {
