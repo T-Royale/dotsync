@@ -1,3 +1,7 @@
+> Dotsync ha sido migrado a Codeberg. No eliminaré este repositorio para no romper enlaces existentes.
+> 
+> https://codeberg.org/T_Royale/dotsync
+
 # dotsync
 Mi proyecto final para el ciclo formativo de grado medio en sistemas microinformáticos y redes.
 ## Objetivo: 
@@ -12,7 +16,7 @@ dotsync edit ~/.bashrc		# Editar .bashrc
 > Consulta la página man dotsync(1) para más información
 ## Instalación completa:
 ```
-git clone https://github.com/T-Royale/dotsync dotsync
+git clone https://codeberg.org/T_Royale/dotsync
 cd dotsync
 make install
 ```
